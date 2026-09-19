@@ -14,13 +14,17 @@ import {
 import {
   GUIDE_WIDTHS,
   LOG_BASE,
+  PLOT_ROTATION_TURN,
   baseLog,
   customSectors,
   cycle,
   densityIntensity,
   densityScale,
   guideSectors,
+  hueAtPlotAngle,
   hueRingColors,
+  plotAngle,
+  polarToPoint,
   scopePoint,
   wheelStep,
 } from "../src/scope";
@@ -68,25 +72,37 @@ describe("RYB hue splines", () => {
 });
 
 describe("scope points", () => {
-  it("puts pure red at angle 0 on the unit ring and greys at the origin", () => {
+  it("orients the plot like darktable's default: red at twelve o'clock, hues counter-clockwise", () => {
+    expect(PLOT_ROTATION_TURN).toBe(0.25);
+    expect(close(plotAngle(0), Math.PI / 2, 1e-12)).toBe(true);
+    expect(close(hueAtPlotAngle(Math.PI / 2), 0, 1e-12)).toBe(true);
+    expect(close(hueAtPlotAngle(plotAngle(0.3)), 0.3, 1e-12)).toBe(true);
+    expect(close(hueAtPlotAngle(plotAngle(0.9) - 2 * Math.PI), 0.9, 1e-12)).toBe(true);
+    // A sixth of a turn later (orange) sits further counter-clockwise: upper left.
+    const [ox, oy] = polarToPoint(1 / 6, 1, "linear");
+    expect(ox).toBeLessThan(0);
+    expect(oy).toBeGreaterThan(0);
+  });
+
+  it("puts pure red straight up on the unit ring and greys at the origin", () => {
     const [x, y] = scopePoint([1, 0, 0], "linear");
-    expect(close(x, 1, 1e-12)).toBe(true);
-    expect(close(y, 0, 1e-12)).toBe(true);
+    expect(close(x, 0, 1e-12)).toBe(true);
+    expect(close(y, 1, 1e-12)).toBe(true);
     expect(scopePoint([0.18, 0.18, 0.18], "linear")).toEqual([0, 0]);
     expect(scopePoint([0, 0, 0], "log")).toEqual([0, 0]);
   });
 
-  it("places yellow at the RYB wheel's yellow (a third of a turn), not RGB's sixth", () => {
+  it("places yellow at the RYB wheel's yellow (a third of a turn from red), not RGB's sixth", () => {
     const [x, y] = scopePoint([1, 1, 0], "linear");
-    const angle = Math.atan2(y, x) / (2 * Math.PI);
-    expect(close(angle, 1 / 3, 1e-9)).toBe(true);
+    const fromRed = Math.atan2(y, x) / (2 * Math.PI) - PLOT_ROTATION_TURN;
+    expect(close(fromRed - Math.floor(fromRed), 1 / 3, 1e-9)).toBe(true);
   });
 
   it("uses the chroma (max − min) as the radius and compresses it logarithmically", () => {
-    const [x] = scopePoint([0.6, 0.1, 0.1], "linear");
-    expect(close(x, 0.5, 1e-12)).toBe(true);
-    const [lx] = scopePoint([0.6, 0.1, 0.1], "log");
-    expect(close(lx, baseLog(0.5, 1), 1e-12)).toBe(true);
+    const [, y] = scopePoint([0.6, 0.1, 0.1], "linear");
+    expect(close(y, 0.5, 1e-12)).toBe(true);
+    const [, ly] = scopePoint([0.6, 0.1, 0.1], "log");
+    expect(close(ly, baseLog(0.5, 1), 1e-12)).toBe(true);
     expect(LOG_BASE).toBe(30);
     expect(close(baseLog(1, 1), 1, 1e-12)).toBe(true);
     expect(close(baseLog(0.5, 1), Math.log1p(29 * 0.5) / Math.log(30), 1e-12)).toBe(true);

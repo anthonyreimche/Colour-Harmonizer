@@ -33,7 +33,9 @@ import {
   cycle,
   densityIntensity,
   densityScale,
+  hueAtPlotAngle,
   hueRingColors,
+  plotAngle,
   polarToPoint,
   ruleSectors,
   wheelStep,
@@ -119,8 +121,8 @@ function buildDensity(sample: ScopeSample, scale: ScopeScale, sizePx: number, pl
       const count = bins[iy * sizePx + ix];
       if (count === 0) continue;
       const v = densityIntensity(count, gain);
-      const turn = Math.atan2(c - iy, ix - c) / (2 * Math.PI);
-      const colour = COLOUR_LUT[Math.floor(wrapHue(turn) * COLOUR_LUT_SIZE) % COLOUR_LUT_SIZE];
+      const turn = hueAtPlotAngle(Math.atan2(c - iy, ix - c));
+      const colour = COLOUR_LUT[Math.floor(turn * COLOUR_LUT_SIZE) % COLOUR_LUT_SIZE];
       const lift = DENSITY_WHITE_LIFT * v;
       const o = (iy * sizePx + ix) * 4;
       px[o] = Math.round(255 * (colour[0] * (1 - lift) + lift));
@@ -145,7 +147,8 @@ function sectorPath(ctx: CanvasRenderingContext2D, sectors: Sector[], cx: number
   for (const s of sectors) {
     const r = R * (scale === "log" ? baseLog(s.radius, 1) : s.radius);
     ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, -s.a0 * 2 * Math.PI, -s.a1 * 2 * Math.PI, true);
+    // Canvas angles run clockwise (y down); plot angles counter-clockwise.
+    ctx.arc(cx, cy, r, -plotAngle(s.a0), -plotAngle(s.a1), true);
     ctx.closePath();
   }
 }
@@ -255,11 +258,12 @@ export function HarmonyScope() {
     const R = W / 2 - PLOT_MARGIN_PX;
     if (R <= 4) return;
 
-    // Hue ring and the six RYB vertices. Canvas conic angles run clockwise
-    // from +x while the plot's run anticlockwise, hence the mirrored stops.
+    // Hue ring and the six RYB vertices. A conic stop at fraction f sits at
+    // canvas angle f·2π (clockwise, y down), which is plot angle −f·2π.
     const ring = ctx.createConicGradient(0, cx, cy);
     for (let i = 0; i <= RING_STOPS; i++) {
-      ring.addColorStop(i / RING_STOPS, css(RING[(RING_STOPS - (i % RING_STOPS)) % RING_STOPS], 0.85));
+      const hue = hueAtPlotAngle((-i / RING_STOPS) * 2 * Math.PI);
+      ring.addColorStop(i / RING_STOPS, css(RING[Math.round(hue * RING_STOPS) % RING_STOPS], 0.85));
     }
     ctx.lineWidth = RING_WIDTH_PX;
     ctx.strokeStyle = ring;
@@ -267,7 +271,7 @@ export function HarmonyScope() {
     ctx.arc(cx, cy, R, 0, 2 * Math.PI);
     ctx.stroke();
     for (let k = 0; k < 6; k++) {
-      const a = (k / 6) * 2 * Math.PI;
+      const a = plotAngle(k / 6);
       ctx.beginPath();
       ctx.arc(cx + R * Math.cos(a), cy - R * Math.sin(a), VERTEX_RADIUS_PX, 0, 2 * Math.PI);
       ctx.fillStyle = css(RING[(k * RING_STOPS) / 6]);

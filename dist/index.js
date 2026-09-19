@@ -685,20 +685,27 @@ var dt = {
 	large: .75 / 12,
 	narrow: .25 / 12,
 	line: 0
-}, ft = .8, pt = 1 / 30, H = .7;
-function mt(e, t) {
+}, ft = .8, pt = 1 / 30, mt = .7, ht = .25;
+function H(e) {
+	return (e + ht) * 2 * Math.PI;
+}
+function gt(e) {
+	let t = e / (2 * Math.PI) - ht;
+	return t - Math.floor(t);
+}
+function _t(e, t) {
 	return Math.log1p(29 * e / t) / Math.log(30) * t;
 }
-function ht(e) {
+function vt(e) {
 	let [t, n] = _e(e);
 	return n <= 0 ? [0, 0] : [lt(t), n];
 }
-function gt(e, t, n) {
+function yt(e, t, n) {
 	if (t <= 0) return [0, 0];
-	let r = e * 2 * Math.PI, i = n === "log" ? mt(t, 1) : t;
+	let r = H(e), i = n === "log" ? _t(t, 1) : t;
 	return [Math.cos(r) * i, Math.sin(r) * i];
 }
-function _t(e, t, n, r) {
+function bt(e, t, n, r) {
 	let i = e.length, a = [];
 	for (let o = 0; o < i; o++) {
 		let s = o > 0 ? Math.min(n, (e[o] - e[o - 1]) / 2) : n, c = o < i - 1 ? Math.min(n, (e[o + 1] - e[o]) / 2) : n;
@@ -710,40 +717,40 @@ function _t(e, t, n, r) {
 	}
 	return a;
 }
-function vt(e, t) {
+function xt(e, t) {
 	return e.map((e) => ({
 		a0: e - t,
 		a1: e + t,
 		radius: ft
 	}));
 }
-function yt(e, t, n) {
+function St(e, t, n) {
 	let r = E[e];
-	return r ? _t(r.sectors, r.lengths, n, t / 360) : [];
+	return r ? bt(r.sectors, r.lengths, n, t / 360) : [];
 }
-function bt(e, t, n) {
+function Ct(e, t, n) {
 	return ((e === "coarse" ? Math.floor((t + 7) / 15) * 15 + 15 * n : t + n) % 360 + 360) % 360;
 }
-function xt(e, t, n) {
+function wt(e, t, n) {
 	return ((t + n) % e + e) % e;
 }
-function St(e) {
+function Tt(e) {
 	let t = [];
 	for (let n = 0; n < e; n++) t.push(ve(ut(n / e), 1, 1));
 	return t;
 }
-function Ct(e, t) {
+function Et(e, t) {
 	return pt * e * e / Math.max(1, t);
 }
-function wt(e, t) {
+function Dt(e, t) {
 	let n = t * e;
 	return n <= 0 ? 0 : n >= 1 ? 1 : w(n);
 }
 //#endregion
 //#region src/store.ts
-var Tt = null;
-function Et() {
-	Tt = B().stores.create((e) => ({
+var Ot = null;
+function kt() {
+	Ot = B().stores.create((e) => ({
 		sample: null,
 		picking: null,
 		setSample: (t) => e({ sample: t }),
@@ -751,15 +758,15 @@ function Et() {
 	}));
 }
 function U() {
-	if (!Tt) throw Error("[colour-harmony] store() called before activate()");
-	return Tt;
+	if (!Ot) throw Error("[colour-harmony] store() called before activate()");
+	return Ot;
 }
 var W = /* @__PURE__ */ new Float32Array(256);
 for (let e = 0; e < 256; e++) W[e] = C(e / 255);
-function Dt(e, t, n) {
+function At(e, t, n) {
 	let r = t * n, i = new Float32Array(r * 2), a = /* @__PURE__ */ new Float32Array(360);
 	for (let t = 0; t < r; t++) {
-		let n = W[e[t * 4]], r = W[e[t * 4 + 1]], o = W[e[t * 4 + 2]], [s, c] = ht([
+		let n = W[e[t * 4]], r = W[e[t * 4 + 1]], o = W[e[t * 4 + 2]], [s, c] = vt([
 			n,
 			r,
 			o
@@ -781,7 +788,7 @@ function Dt(e, t, n) {
 	};
 }
 var G = null;
-function Ot(e) {
+function jt(e) {
 	let { width: t, height: n } = e;
 	if (t < 2 || n < 2) return null;
 	let r = Math.min(1, 192 / Math.max(t, n)), i = Math.max(1, Math.round(t * r)), a = Math.max(1, Math.round(n * r));
@@ -793,13 +800,13 @@ function Ot(e) {
 		height: a
 	}) : null;
 }
-function kt(e) {
+function Mt(e) {
 	let t = e.throttleMs ?? 150, n = !1, r = !1, i = !1, a = null, o = -Infinity, s = () => {
 		a = null;
 		let t = e.develop.getState();
 		!n && t.photoId && (r = !0, o = Date.now(), e.capture(t.previewParams ?? t.params).then((t) => {
 			let r = n ? null : e.readback(t);
-			t.close?.(), !n && e.publish(r ? Dt(r.data, r.width, r.height) : null);
+			t.close?.(), !n && e.publish(r ? At(r.data, r.width, r.height) : null);
 		}).catch(() => {
 			n || e.publish(null);
 		}).finally(() => {
@@ -825,12 +832,12 @@ function kt(e) {
 		n = !0, l(), a !== null && clearTimeout(a), a = null;
 	};
 }
-function At() {
+function Nt() {
 	let e = B();
-	return kt({
+	return Mt({
 		develop: e.stores.useDevelopStore,
 		capture: (t) => e.develop.captureFrame(t),
-		readback: Ot,
+		readback: jt,
 		publish: (e) => U().getState().setSample(e)
 	});
 }
@@ -845,17 +852,17 @@ var K = {
 	"large",
 	"narrow",
 	"line"
-], jt = 300, J = 48, Mt = 3, Nt = 8, Pt = 3, Ft = 360, It = .45, Lt = "Scroll to rotate the harmony by 15° · Ctrl+scroll for 1° · Shift+scroll changes the guide width · Alt+scroll cycles the rule";
-function Rt() {
-	let e = B().settings, t = e.get(K.scale, "log"), n = e.get(K.guideWidth, "normal"), r = e.get(K.dim, H);
+], Pt = 300, J = 48, Ft = 3, It = 8, Lt = 3, Rt = 360, zt = .45, Bt = "Scroll to rotate the harmony by 15° · Ctrl+scroll for 1° · Shift+scroll changes the guide width · Alt+scroll cycles the rule";
+function Vt() {
+	let e = B().settings, t = e.get(K.scale, "log"), n = e.get(K.guideWidth, "normal"), r = e.get(K.dim, mt);
 	return {
 		scale: t === "linear" ? "linear" : "log",
 		guideWidth: q.includes(n) ? n : "normal",
-		dim: typeof r == "number" && Number.isFinite(r) ? Math.min(1, Math.max(0, r)) : H
+		dim: typeof r == "number" && Number.isFinite(r) ? Math.min(1, Math.max(0, r)) : mt
 	};
 }
-var zt = (e, t = 1) => `rgba(${Math.round(e[0] * 255)}, ${Math.round(e[1] * 255)}, ${Math.round(e[2] * 255)}, ${t})`, Bt = St(J), Vt = St(Ft);
-function Ht(e) {
+var Ht = (e, t = 1) => `rgba(${Math.round(e[0] * 255)}, ${Math.round(e[1] * 255)}, ${Math.round(e[2] * 255)}, ${t})`, Ut = Tt(J), Wt = Tt(Rt);
+function Gt(e) {
 	let t = getComputedStyle(e).backgroundColor.match(/\d+(?:\.\d+)?/g);
 	return !t || (Number(t[0]) + Number(t[1]) + Number(t[2])) / 765 < .5 ? {
 		ink: "rgba(235, 235, 235, 0.9)",
@@ -865,37 +872,37 @@ function Ht(e) {
 		faint: "rgba(25, 25, 25, 0.35)"
 	};
 }
-function Ut(e, t, n, r) {
+function Kt(e, t, n, r) {
 	let i = document.createElement("canvas");
 	i.width = n, i.height = n;
 	let a = i.getContext("2d");
 	if (!a) return i;
 	let o = new Uint32Array(n * n), s = n / 2;
 	for (let i = 0; i < e.count; i++) {
-		let [a, c] = gt(e.points[i * 2], e.points[i * 2 + 1], t), l = Math.round(s + a * r), u = Math.round(s - c * r);
+		let [a, c] = yt(e.points[i * 2], e.points[i * 2 + 1], t), l = Math.round(s + a * r), u = Math.round(s - c * r);
 		l >= 0 && l < n && u >= 0 && u < n && o[u * n + l]++;
 	}
-	let c = Ct(2 * r, e.count), l = a.createImageData(n, n), u = l.data;
+	let c = Et(2 * r, e.count), l = a.createImageData(n, n), u = l.data;
 	for (let e = 0; e < n; e++) for (let t = 0; t < n; t++) {
 		let r = o[e * n + t];
 		if (r === 0) continue;
-		let i = wt(r, c), a = Math.atan2(s - e, t - s) / (2 * Math.PI), l = Vt[Math.floor(xe(a) * Ft) % Ft], d = It * i, f = (e * n + t) * 4;
+		let i = Dt(r, c), a = gt(Math.atan2(s - e, t - s)), l = Wt[Math.floor(a * Rt) % Rt], d = zt * i, f = (e * n + t) * 4;
 		u[f] = Math.round(255 * (l[0] * (1 - d) + d)), u[f + 1] = Math.round(255 * (l[1] * (1 - d) + d)), u[f + 2] = Math.round(255 * (l[2] * (1 - d) + d)), u[f + 3] = Math.round(255 * i);
 	}
 	return a.putImageData(l, 0, 0), i;
 }
-function Wt(e, t) {
-	return e.rule === 9 ? vt(e.customHues.slice(0, e.customNodes).map(A), t) : yt(e.rule, M(e), t);
+function qt(e, t) {
+	return e.rule === 9 ? xt(e.customHues.slice(0, e.customNodes).map(A), t) : St(e.rule, M(e), t);
 }
-function Gt(e, t, n, r, i, a) {
+function Jt(e, t, n, r, i, a) {
 	e.beginPath();
 	for (let o of t) {
-		let t = i * (a === "log" ? mt(o.radius, 1) : o.radius);
-		e.moveTo(n, r), e.arc(n, r, t, -o.a0 * 2 * Math.PI, -o.a1 * 2 * Math.PI, !0), e.closePath();
+		let t = i * (a === "log" ? _t(o.radius, 1) : o.radius);
+		e.moveTo(n, r), e.arc(n, r, t, -H(o.a0), -H(o.a1), !0), e.closePath();
 	}
 }
-function Kt(e, t, n, r, i) {
-	if (r) return Pe(e, xt(E.length, e.rule, i));
+function Yt(e, t, n, r, i) {
+	if (r) return Pe(e, wt(E.length, e.rule, i));
 	if (e.rule === 9) {
 		let r = n ? 1 / 360 : 15 / 360;
 		return {
@@ -903,15 +910,15 @@ function Kt(e, t, n, r, i) {
 			customHues: e.customHues.map((n, i) => i < e.customNodes ? j(xe(A(n) + t * r)) : n)
 		};
 	}
-	let a = bt(n ? "fine" : "coarse", M(e), t);
+	let a = Ct(n ? "fine" : "coarse", M(e), t);
 	return {
 		...e,
 		anchorHue: j(a / 360)
 	};
 }
-function qt() {
+function Xt() {
 	let { useEffect: e, useRef: t, useState: n } = B().react, r = B().stores.useDevelopStore, i = U()((e) => e.sample), a = r((e) => e.paramBag), [o, s] = n(240), [c, l] = n(0), u = t(null), d = t(null), f = t(null), p = t(null);
-	e(() => At(), []), e(() => B().settings.onChange(() => l((e) => e + 1)), []), e(() => {
+	e(() => Nt(), []), e(() => B().settings.onChange(() => l((e) => e + 1)), []), e(() => {
 		let e = u.current;
 		if (!e) return;
 		let t = new ResizeObserver((e) => {
@@ -923,7 +930,7 @@ function qt() {
 	let m = () => {
 		p.current !== null && window.clearTimeout(p.current), p.current = window.setTimeout(() => {
 			p.current = null, r.getState().commitEdit("Colour Harmony");
-		}, jt);
+		}, Pt);
 	};
 	return e(() => () => {
 		p.current !== null && (window.clearTimeout(p.current), r.getState().commitEdit("Colour Harmony"));
@@ -935,12 +942,12 @@ function qt() {
 			let t = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? -e.deltaX : e.deltaY, n = t > 0 ? 1 : t < 0 ? -1 : 0;
 			if (n === 0) return;
 			if (e.shiftKey) {
-				let e = Rt(), t = q[xt(q.length, q.indexOf(e.guideWidth), n)];
+				let e = Vt(), t = q[wt(q.length, q.indexOf(e.guideWidth), n)];
 				B().settings.set(K.guideWidth, t), l((e) => e + 1);
 				return;
 			}
 			let i = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) > 0 ? 1 : -1, a = r.getState();
-			a.photoId && (a.setDynParams(z(Kt(R(a.paramBag), n, e.ctrlKey, e.altKey, i))), m());
+			a.photoId && (a.setDynParams(z(Yt(R(a.paramBag), n, e.ctrlKey, e.altKey, i))), m());
 		};
 		return e.addEventListener("wheel", t, { passive: !1 }), () => e.removeEventListener("wheel", t);
 	}, []), e(() => {
@@ -951,27 +958,30 @@ function qt() {
 		let r = e.getContext("2d");
 		if (!r) return;
 		r.setTransform(t, 0, 0, t, 0, 0), r.clearRect(0, 0, n, n);
-		let s = Rt(), c = R(a), { ink: l, faint: u } = Ht(e), p = n / 2, m = n / 2, h = n / 2 - Nt;
+		let s = Vt(), c = R(a), { ink: l, faint: u } = Gt(e), p = n / 2, m = n / 2, h = n / 2 - It;
 		if (h <= 4) return;
 		let g = r.createConicGradient(0, p, m);
-		for (let e = 0; e <= J; e++) g.addColorStop(e / J, zt(Bt[(J - e % J) % J], .85));
-		r.lineWidth = Mt, r.strokeStyle = g, r.beginPath(), r.arc(p, m, h, 0, 2 * Math.PI), r.stroke();
-		for (let e = 0; e < 6; e++) {
-			let t = e / 6 * 2 * Math.PI;
-			r.beginPath(), r.arc(p + h * Math.cos(t), m - h * Math.sin(t), Pt, 0, 2 * Math.PI), r.fillStyle = zt(Bt[e * J / 6]), r.fill(), r.lineWidth = 1, r.strokeStyle = u, r.stroke();
+		for (let e = 0; e <= J; e++) {
+			let t = gt(-e / J * 2 * Math.PI);
+			g.addColorStop(e / J, Ht(Ut[Math.round(t * J) % J], .85));
 		}
-		let _ = dt[s.guideWidth], v = Wt(c, _);
+		r.lineWidth = Ft, r.strokeStyle = g, r.beginPath(), r.arc(p, m, h, 0, 2 * Math.PI), r.stroke();
+		for (let e = 0; e < 6; e++) {
+			let t = H(e / 6);
+			r.beginPath(), r.arc(p + h * Math.cos(t), m - h * Math.sin(t), Lt, 0, 2 * Math.PI), r.fillStyle = Ht(Ut[e * J / 6]), r.fill(), r.lineWidth = 1, r.strokeStyle = u, r.stroke();
+		}
+		let _ = dt[s.guideWidth], v = qt(c, _);
 		if (i) {
 			let e = Math.round(n * t), a = `${i.count}|${i.width}x${i.height}|${s.scale}|${e}`;
 			(!f.current || f.current.key !== a) && (f.current = {
-				canvas: Ut(i, s.scale, e, h * t),
+				canvas: Kt(i, s.scale, e, h * t),
 				key: a
 			});
 			let o = f.current.canvas, c = _ > 0 && v.length > 0;
-			r.save(), r.globalAlpha = c ? s.dim : 1, r.drawImage(o, 0, 0, n, n), r.restore(), c && (r.save(), Gt(r, v, p, m, h, s.scale), r.clip(), r.drawImage(o, 0, 0, n, n), r.restore());
+			r.save(), r.globalAlpha = c ? s.dim : 1, r.drawImage(o, 0, 0, n, n), r.restore(), c && (r.save(), Jt(r, v, p, m, h, s.scale), r.clip(), r.drawImage(o, 0, 0, n, n), r.restore());
 		} else f.current = null;
 		if (v.length > 0) {
-			Gt(r, v, p, m, h, s.scale), r.lineWidth = 1, r.strokeStyle = l, r.stroke(), r.font = "11px var(--font-mono), monospace", r.fillStyle = l, r.textBaseline = "bottom";
+			Jt(r, v, p, m, h, s.scale), r.lineWidth = 1, r.strokeStyle = l, r.stroke(), r.font = "11px var(--font-mono), monospace", r.fillStyle = l, r.textBaseline = "bottom";
 			let e = E[c.rule]?.label ?? "";
 			r.fillText(c.rule === 9 ? e : `${M(c)}°  ${e}`, 6, n - 5);
 		}
@@ -993,39 +1003,39 @@ function qt() {
 			background: "var(--color-surface-0)",
 			touchAction: "none"
 		},
-		title: Lt
+		title: Bt
 	}));
 }
 //#endregion
 //#region src/Panel.ts
-var Jt = 24, Yt = 8, Xt = .85, Zt = (e) => `rgb(${Math.round(e[0] * 255)}, ${Math.round(e[1] * 255)}, ${Math.round(e[2] * 255)})`, Y = null;
-function Qt() {
+var Zt = 24, Qt = 8, $t = .85, en = (e) => `rgb(${Math.round(e[0] * 255)}, ${Math.round(e[1] * 255)}, ${Math.round(e[2] * 255)})`, Y = null;
+function tn() {
 	if (Y) return Y;
 	let e = [];
-	for (let t = 0; t <= Jt; t++) {
-		let n = t / Jt;
-		e.push(`${Zt(Oe(j(n)))} ${(n * 100).toFixed(2)}%`);
+	for (let t = 0; t <= Zt; t++) {
+		let n = t / Zt;
+		e.push(`${en(Oe(j(n)))} ${(n * 100).toFixed(2)}%`);
 	}
 	return Y = `linear-gradient(to right, ${e.join(", ")})`, Y;
 }
-var $t = /* @__PURE__ */ new Map();
-function en(e) {
-	let t = Math.round(e * 1e3), n = $t.get(t);
+var nn = /* @__PURE__ */ new Map();
+function rn(e) {
+	let t = Math.round(e * 1e3), n = nn.get(t);
 	if (n) return n;
-	let r = Ee(e), i = r * Xt, a = [];
-	for (let t = 0; t <= Yt; t++) {
-		let n = t / Yt, o = n <= .5 ? n * 2 * i : i + (n - .5) * 2 * (r - i);
-		a.push(`${Zt(De(e, o))} ${(n * 100).toFixed(2)}%`);
+	let r = Ee(e), i = r * $t, a = [];
+	for (let t = 0; t <= Qt; t++) {
+		let n = t / Qt, o = n <= .5 ? n * 2 * i : i + (n - .5) * 2 * (r - i);
+		a.push(`${en(De(e, o))} ${(n * 100).toFixed(2)}%`);
 	}
 	let o = `linear-gradient(to right, ${a.join(", ")})`;
-	return $t.set(t, o), o;
+	return nn.set(t, o), o;
 }
-var tn = A(D.anchorHue) * 360, nn = {
+var an = A(D.anchorHue) * 360, on = {
 	fontSize: "10px",
 	color: "var(--color-text-muted)",
 	lineHeight: 1.4
 };
-function rn() {
+function sn() {
 	let { Slider: e, Panel: t } = B().components, { Button: n, Select: r, Row: i, Stack: a, tokens: o } = B().ui, s = B().stores.useDevelopStore, c = s((e) => e.paramBag), l = U()((e) => e.sample), u = U()((e) => e.picking), d = R(c), f = d.rule === 9, p = N(d), m = () => R(s.getState().paramBag), h = (e) => s.getState().setDynParams(z(e)), g = (e) => void s.getState().commitEdit(`Colour Harmony ${e}`), _ = (t, n, r, i, a, o, s, c) => V(e, {
 		key: t,
 		label: t,
@@ -1044,7 +1054,7 @@ function rn() {
 			height: 22,
 			flex: "0 0 auto",
 			borderRadius: 4,
-			background: Zt(Oe(e)),
+			background: en(Oe(e)),
 			border: `1px solid ${o.border}`
 		}
 	}), y = (e) => V(n, {
@@ -1083,14 +1093,14 @@ function rn() {
 				anchorHue: t.anchor
 			}), g("infer");
 		}
-	}, "Infer")), b = (e, t, n, r) => _(e, A(t) * 360, 0, 360, .5, n, (e, t) => r(e, j(t / 360)), Qt()), x = f ? null : V(i, {
+	}, "Infer")), b = (e, t, n, r) => _(e, A(t) * 360, 0, 360, .5, n, (e, t) => r(e, j(t / 360)), tn()), x = f ? null : V(i, {
 		key: "anchor",
 		gap: 6,
 		align: "flex-end"
 	}, V("div", { style: {
 		flex: "1 1 auto",
 		minWidth: 0
-	} }, b("Anchor hue", d.anchorHue, tn, (e, t) => ({
+	} }, b("Anchor hue", d.anchorHue, an, (e, t) => ({
 		...e,
 		anchorHue: t
 	}))), y("anchor")), te = f ? [_("Nodes", d.customNodes, 2, 4, 1, D.customNodes, (e, t) => ({
@@ -1110,7 +1120,7 @@ function rn() {
 		key: "swatches",
 		gap: 6
 	}, ...p.nodes.map((e, t) => v(e, `node-${t}`)), V("span", { style: {
-		...nn,
+		...on,
 		marginLeft: "auto"
 	} }, `${p.count} node${p.count === 1 ? "" : "s"}`)), S = [
 		_("Pull strength", d.pullStrength, 0, 1, .01, D.pullStrength, (e, t) => ({
@@ -1136,11 +1146,11 @@ function rn() {
 	}, V(a, { gap: 1 }, ...p.nodes.map((e, t) => _(`Hue ${t + 1} saturation`, Math.round(d.nodeSat[t] * 100), 0, 200, 1, 100, (e, n) => ({
 		...e,
 		nodeSat: e.nodeSat.map((e, r) => r === t ? n / 100 : e)
-	}), en(e)))));
+	}), rn(e)))));
 	return V(a, {
 		gap: 6,
 		style: { padding: "6px 8px 8px" }
-	}, V(qt, { key: "scope" }), ee, x, ...te ?? [], ne, V("div", {
+	}, V(Xt, { key: "scope" }), ee, x, ...te ?? [], ne, V("div", {
 		key: "effect",
 		style: {
 			display: "flex",
@@ -1151,8 +1161,8 @@ function rn() {
 }
 //#endregion
 //#region src/Picker.ts
-var an = .01;
-function on(e, t, n, r, i) {
+var cn = .01;
+function ln(e, t, n, r, i) {
 	if (!i || n.width <= 0 || n.height <= 0 || i.w <= 0 || i.h <= 0) return null;
 	let a = r / n.width, o = (e - n.left) * a, s = (t - n.top) * a, c = (o - i.x) / i.w, l = (s - i.y) / i.h;
 	return c < 0 || c > 1 || l < 0 || l > 1 ? null : {
@@ -1160,7 +1170,7 @@ function on(e, t, n, r, i) {
 		y: l
 	};
 }
-function sn(e, t, n, r, i) {
+function un(e, t, n, r, i) {
 	let a = Math.max(0, r - 2), o = Math.max(0, i - 2), s = Math.min(t - 1, r + 2), c = Math.min(n - 1, i + 2), l = 0, u = 0, d = 0, f = 0;
 	for (let n = o; n <= c; n++) for (let r = a; r <= s; r++) {
 		let i = (n * t + r) * 4;
@@ -1172,9 +1182,9 @@ function sn(e, t, n, r, i) {
 		u / f,
 		d / f
 	]);
-	return p > an ? me(m) : null;
+	return p > cn ? me(m) : null;
 }
-function cn(e, t) {
+function dn(e, t) {
 	let n = B().stores.useDevelopStore.getState(), r = R(n.paramBag), i = e === "anchor" ? {
 		...r,
 		anchorHue: t
@@ -1184,10 +1194,10 @@ function cn(e, t) {
 	};
 	n.setDynParams(z(i)), n.commitEdit("Colour Harmony pick"), U().getState().setPicking(null);
 }
-async function ln(e, t, n, r, i) {
+async function fn(e, t, n, r, i) {
 	try {
 		if (!n) return;
-		let a = on(e, t, n.getBoundingClientRect(), n.clientWidth, r);
+		let a = ln(e, t, n.getBoundingClientRect(), n.clientWidth, r);
 		if (!a) return;
 		let o = B().stores.useDevelopStore.getState(), s = await B().develop.captureFrame(o.previewParams ?? o.params), c = s.width, l = s.height;
 		if (c < 2 || l < 2) {
@@ -1200,13 +1210,13 @@ async function ln(e, t, n, r, i) {
 			return;
 		}
 		u.drawImage(s, 0, 0), s.close();
-		let d = Math.min(c - 1, Math.max(0, Math.round(a.x * c))), f = Math.min(l - 1, Math.max(0, Math.round(a.y * l))), p = Math.max(0, d - 2), m = Math.max(0, f - 2), h = Math.min(c - 1, d + 2) - p + 1, g = Math.min(l - 1, f + 2) - m + 1, _ = u.getImageData(p, m, h, g).data, v = sn(_, h, g, d - p, f - m);
-		v !== null && cn(i, v);
+		let d = Math.min(c - 1, Math.max(0, Math.round(a.x * c))), f = Math.min(l - 1, Math.max(0, Math.round(a.y * l))), p = Math.max(0, d - 2), m = Math.max(0, f - 2), h = Math.min(c - 1, d + 2) - p + 1, g = Math.min(l - 1, f + 2) - m + 1, _ = u.getImageData(p, m, h, g).data, v = un(_, h, g, d - p, f - m);
+		v !== null && dn(i, v);
 	} catch (e) {
 		console.warn("[colour-harmony] hue pick failed:", e);
 	}
 }
-function un() {
+function pn() {
 	let { useEffect: e, useRef: t } = B().react, n = U()((e) => e.picking), r = B().develop.useDevelopOverlay(), i = t(null);
 	return e(() => {
 		if (n === null) return;
@@ -1223,18 +1233,18 @@ function un() {
 			cursor: B().cursors.resolve("pick")
 		},
 		onPointerDown: (e) => {
-			e.button !== 0 || e.ctrlKey || e.metaKey || (e.preventDefault(), ln(e.clientX, e.clientY, i.current, r.rect, n));
+			e.button !== 0 || e.ctrlKey || e.metaKey || (e.preventDefault(), fn(e.clientX, e.clientY, i.current, r.rect, n));
 		}
 	});
 }
-var dn = Math.sqrt(85), fn = 4096;
-function pn(e) {
+var mn = Math.sqrt(85), hn = 4096;
+function gn(e) {
 	let t = e.toPrecision(10);
 	if (!t.includes("e")) return t.includes(".") ? t : `${t}.0`;
 	let [n, r] = t.split("e");
 	return `${n.includes(".") ? n : `${n}.0`}e${r}`;
 }
-var X = pn, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(X).join(", ")})`, mn = (e) => `mat3(${[
+var X = gn, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(X).join(", ")})`, _n = (e) => `mat3(${[
 	0,
 	3,
 	6,
@@ -1244,7 +1254,7 @@ var X = pn, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(
 	2,
 	5,
 	8
-].map((t) => X(e[t])).join(", ")})`, hn = `
+].map((t) => X(e[t])).join(", ")})`, vn = `
 float chLStar(float Y) {
   float yh = pow(max(Y, 0.0), ${X(a)});
   return ${X(r)} * yh / (yh + ${X(o)});
@@ -1264,7 +1274,7 @@ vec3 chXyz(vec3 xyY) {
 }
 // Scene-linear RGB -> (J, C, hue turn in [0, 1)).
 vec3 chJch(vec3 lin) {
-  const mat3 toXyz = ${mn(e)};
+  const mat3 toXyz = ${_n(e)};
   vec3 xyY = chXyY(toXyz * lin);
   vec3 uvd = ${Z(f)} * xyY.x + ${Z(p)} * xyY.y + ${Z(m)};
   vec2 uv = uvd.xy / chSafeDiv(uvd.z);
@@ -1278,7 +1288,7 @@ vec3 chJch(vec3 lin) {
 }
 // (J, C, hue turn) -> scene-linear RGB.
 vec3 chRgb(vec3 jch) {
-  const mat3 toRgb = ${mn(t)};
+  const mat3 toRgb = ${_n(t)};
   float L = clamp(jch.x * ${X(S)}, 0.0, ${X(i)});
   float M = L != 0.0
     ? pow(jch.y * ${X(S)} / (${X(c)} * pow(L, ${X(l)})), ${X(d)})
@@ -1323,7 +1333,7 @@ vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutra
   float C = max(jch.y * (1.0 + satDelta * cw), 0.0);
   return chRgb(vec3(jch.x, C, hue));
 }
-`, gn = "\n{\n  if (smoothing <= 0.0 && (pullStrength > 0.0 || any(notEqual(nodeSat, vec4(1.0))))) {\n    int n = int(nodeCount + 0.5);\n    vec3 jch = chJch(max(lin, 0.0));\n    vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n    float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n    lin = chFinish(jch, pull.x, satDelta, pullStrength, neutralProtection);\n  }\n}\n", _n = {
+`, yn = "\n{\n  if (smoothing <= 0.0 && (pullStrength > 0.0 || any(notEqual(nodeSat, vec4(1.0))))) {\n    int n = int(nodeCount + 0.5);\n    vec3 jch = chJch(max(lin, 0.0));\n    vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n    float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n    lin = chFinish(jch, pull.x, satDelta, pullStrength, neutralProtection);\n  }\n}\n", bn = {
 	rule: {
 		min: 0,
 		max: 9,
@@ -1359,7 +1369,7 @@ vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutra
 		max: 2,
 		step: .01
 	}
-}, vn = {
+}, xn = {
 	rule: "harmony rule",
 	anchorHue: "anchor hue",
 	customHues: "custom node hues",
@@ -1372,7 +1382,7 @@ vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutra
 	nodes: "harmony nodes",
 	nodeCount: "node count"
 };
-function yn() {
+function Sn() {
 	let e = D, { nodes: t, count: n } = N(e), r = [
 		...t,
 		0,
@@ -1396,29 +1406,29 @@ function yn() {
 		key: e,
 		glslType: Array.isArray(i[e]) ? "vec4" : "float",
 		default: i[e],
-		range: _n[e],
-		label: vn[e]
+		range: bn[e],
+		label: xn[e]
 	}));
 }
-function bn() {
+function Cn() {
 	return {
 		id: He,
 		name: "Colour Harmony",
 		phase: "scene-linear",
 		priority: 80,
-		glsl: gn,
-		helpers: hn,
-		uniforms: yn(),
+		glsl: yn,
+		helpers: vn,
+		uniforms: Sn(),
 		presetScope: "global"
 	};
 }
-var xn = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));\n  vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n  float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n  c = vec3(pull.x, satDelta, 0.0);\n}\n", Sn = `
+var wn = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));\n  vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n  float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n  c = vec3(pull.x, satDelta, 0.0);\n}\n", Tn = `
 {
   int level = uPassIndex / 2;
   bool horizontal = (uPassIndex - 2 * level) == 0;
   float longEdge = max(1.0 / uTexel.x, 1.0 / uTexel.y);
-  float sigma = blur * max(${X(1.5)}, 8.0 * longEdge / ${X(fn)});
-  float dil = sigma / ${X(dn)} * exp2(float(level));
+  float sigma = blur * max(${X(1.5)}, 8.0 * longEdge / ${X(hn)});
+  float dil = sigma / ${X(mn)} * exp2(float(level));
   vec2 step = (horizontal ? vec2(uTexel.x, 0.0) : vec2(0.0, uTexel.y)) * dil;
   vec3 acc = 0.375 * c;
   for (int k = 1; k <= 2; k++) {
@@ -1427,7 +1437,7 @@ var xn = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));
   }
   c = acc;
 }
-`, Cn = "\n{\n  if (on > 0.5) {\n    vec3 jch = chJch(max(lin, 0.0));\n    lin = chFinish(jch, stageResult.x, stageResult.y, pullStrength, neutralProtection);\n  }\n}\n", $ = (e, t) => ({
+`, En = "\n{\n  if (on > 0.5) {\n    vec3 jch = chJch(max(lin, 0.0));\n    lin = chFinish(jch, stageResult.x, stageResult.y, pullStrength, neutralProtection);\n  }\n}\n", $ = (e, t) => ({
 	key: e,
 	glslType: t,
 	default: t === "vec4" ? [
@@ -1436,66 +1446,66 @@ var xn = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));
 		0,
 		0
 	] : 0
-}), wn = [
+}), Dn = [
 	$("nodes", "vec4"),
 	$("nodeCount", "float"),
 	$("nodeSat", "vec4"),
 	$("pullWidth", "float")
-], Tn = [$("blur", "float")], En = [
+], On = [$("blur", "float")], kn = [
 	$("pullStrength", "float"),
 	$("neutralProtection", "float"),
 	$("on", "float")
 ];
-function Dn() {
+function An() {
 	return {
 		id: Ue,
 		name: "Colour Harmony · smoothing",
 		phase: "scene-linear",
 		priority: 81,
-		glsl: Cn,
-		helpers: hn,
-		uniforms: En,
+		glsl: En,
+		helpers: vn,
+		uniforms: kn,
 		passes: [{
-			glsl: xn,
-			helpers: hn,
+			glsl: wn,
+			helpers: vn,
 			iterations: 1,
-			uniforms: wn
+			uniforms: Dn
 		}, {
-			glsl: Sn,
+			glsl: Tn,
 			iterations: 8,
-			uniforms: Tn
+			uniforms: On
 		}],
 		presetScope: "global"
 	};
 }
-function On() {
-	return [bn(), Dn()];
+function jn() {
+	return [Cn(), An()];
 }
 //#endregion
 //#region src/index.ts
-var kn = `${P}.panel`, An = `${P}.picker`, jn = null;
-function Mn() {
+var Mn = `${P}.panel`, Nn = `${P}.picker`, Pn = null;
+function Fn() {
 	let e = B().stores.useDevelopStore.getState();
 	e.setDynParams(Ze()), e.commitEdit("Colour Harmony reset");
 }
-function Nn(e) {
-	tt(e), Et();
-	for (let t of On()) e.registerProcessingStage(t);
+function In(e) {
+	tt(e), kt();
+	for (let t of jn()) e.registerProcessingStage(t);
 	e.registerPanel({
-		id: kn,
+		id: Mn,
 		title: "Colour Harmony",
-		component: rn,
+		component: sn,
 		defaultDock: {
 			module: "develop",
 			direction: "right",
 			order: 7,
 			width: 268
 		},
-		onReset: Mn
+		onReset: Fn
 	}), e.registerSlot({
-		id: An,
+		id: Nn,
 		slot: "develop-canvas-overlay",
-		component: un,
+		component: pn,
 		order: 60
 	}), e.registerSettings({
 		title: "Colour Harmony",
@@ -1534,28 +1544,28 @@ function Nn(e) {
 				label: "Dim outside guides",
 				hint: "How much of the plot shows outside the harmony sectors (darktable: 0.7).",
 				type: "number",
-				default: H,
+				default: mt,
 				min: 0,
 				max: 1,
 				step: .05
 			}
 		]
-	}), jn = e.stores.useDevelopStore.subscribe((e, t) => {
+	}), Pn = e.stores.useDevelopStore.subscribe((e, t) => {
 		if (e.paramBag === t.paramBag) return;
 		let n = $e(e.paramBag);
 		n && e.setDynParams(n);
 	});
 }
-function Pn() {
-	jn?.(), jn = null;
+function Ln() {
+	Pn?.(), Pn = null;
 	try {
 		U().getState().setPicking(null);
 		let e = B();
-		for (let t of On()) e.unregisterProcessingStage(t.id);
-		e.unregisterSlot(An);
+		for (let t of jn()) e.unregisterProcessingStage(t.id);
+		e.unregisterSlot(Nn);
 	} catch {}
 }
 //#endregion
-export { Nn as activate, Pn as deactivate };
+export { In as activate, Ln as deactivate };
 
 //# sourceMappingURL=index.js.map

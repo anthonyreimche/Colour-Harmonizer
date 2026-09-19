@@ -40,7 +40,8 @@ are a bit-exact no-op.
 darktable's, in darktable's order:
 
 - **The scope** (top): the vectorscope of the current render with the guide
-  sectors for the current rule. **Scroll** rotates the harmony 15° on the RYB
+  sectors for the current rule, red at twelve o'clock and hues running
+  counter-clockwise (darktable's default orientation). **Scroll** rotates the harmony 15° on the RYB
   wheel (snapped), **Ctrl+scroll** 1°, **Shift+scroll** cycles the guide width
   (normal / large / narrow / line), **Alt+scroll** cycles the rule; custom nodes
   rotate as a group. One gesture is one undo entry.

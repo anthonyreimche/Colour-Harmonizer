@@ -27,6 +27,22 @@ export const DENSITY_GAIN = 1 / 30;
 /** Dim applied to the graph outside the guide sectors (darktable's default). */
 export const DEFAULT_DIM = 0.7;
 
+/** Where hue 0 (red) points: a quarter turn, i.e. twelve o'clock, with hues
+ *  running counter-clockwise — darktable's default vectorscope angle (270° in
+ *  its y-down space, "what video editors are used to"). */
+export const PLOT_ROTATION_TURN = 0.25;
+
+/** A hue turn → its plot angle in radians, y up. */
+export function plotAngle(hueTurn: number): number {
+  return (hueTurn + PLOT_ROTATION_TURN) * 2 * Math.PI;
+}
+
+/** The inverse: a plot angle (radians, y up) → the hue turn drawn there. */
+export function hueAtPlotAngle(angle: number): number {
+  const t = angle / (2 * Math.PI) - PLOT_ROTATION_TURN;
+  return t - Math.floor(t);
+}
+
 export function baseLog(x: number, bound: number): number {
   return (Math.log1p(((LOG_BASE - 1) * x) / bound) / Math.log(LOG_BASE)) * bound;
 }
@@ -42,7 +58,7 @@ export function scopePolar(rgb: Vec3): [number, number] {
 /** Polar → plot position at the chosen scale, y up. */
 export function polarToPoint(hueTurn: number, chroma: number, scale: ScopeScale): [number, number] {
   if (chroma <= 0) return [0, 0];
-  const angle = hueTurn * 2 * Math.PI;
+  const angle = plotAngle(hueTurn);
   const r = scale === "log" ? baseLog(chroma, 1) : chroma;
   return [Math.cos(angle) * r, Math.sin(angle) * r];
 }
