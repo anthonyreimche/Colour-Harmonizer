@@ -1,0 +1,12 @@
+{
+  "id": "colour-harmony",
+  "name": "Colour Harmony",
+  "version": "1.0.0",
+  "description": "A port of darktable's color harmonizer — pull hues toward a harmony palette (complementary, triad, split complementary, custom…) in darktable UCS, with an RYB vectorscope showing the harmony guides over the live render.",
+  "author": "Anthony Reimche",
+  "main": "dist/index.js",
+  "license": "GPL-3.0-or-later",
+  "categories": ["Develop", "Color"],
+  "keywords": ["darktable", "colour-harmony", "color-harmony", "harmonizer", "vectorscope", "ryb", "complementary", "triad", "palette", "grading", "ucs"],
+  "minAppVersion": "2.5.4"
+}
