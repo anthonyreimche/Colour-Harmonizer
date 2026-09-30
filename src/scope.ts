@@ -5,6 +5,7 @@
 
 import { RULES } from "./harmony";
 import { rgbHueToRybHueSpline, rybHueToRgbHueSpline } from "./ryb";
+import type { ScopeSample } from "./store";
 import { hsvToRgb, linearToSrgb, rgbToHcv, type Vec3 } from "./ucs";
 
 export type ScopeScale = "log" | "linear";
@@ -131,6 +132,20 @@ export function hueRingColors(n: number): Vec3[] {
 /** Count → intensity factor: darktable's gain over the plot's pixel count. */
 export function densityScale(diameterPx: number, samples: number): number {
   return (DENSITY_GAIN * diameterPx * diameterPx) / Math.max(1, samples);
+}
+
+/** What a plotted density layer was built from. */
+export interface DensitySource {
+  sample: ScopeSample;
+  scale: ScopeScale;
+  sizePx: number;
+}
+
+/** Whether a built layer still shows `next`. Every capture is a new sample,
+ *  and two frames of one photo share their count and size, so the sample's
+ *  identity is what tells a new frame from a redraw. */
+export function sameDensity(built: DensitySource, next: DensitySource): boolean {
+  return built.sample === next.sample && built.scale === next.scale && built.sizePx === next.sizePx;
 }
 
 /** Bin count → 0..1 intensity, display-encoded like darktable's LUT. */

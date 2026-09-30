@@ -743,14 +743,17 @@ function Et(e, t) {
 	return pt * e * e / Math.max(1, t);
 }
 function Dt(e, t) {
+	return e.sample === t.sample && e.scale === t.scale && e.sizePx === t.sizePx;
+}
+function Ot(e, t) {
 	let n = t * e;
 	return n <= 0 ? 0 : n >= 1 ? 1 : w(n);
 }
 //#endregion
 //#region src/store.ts
-var Ot = null;
-function kt() {
-	Ot = B().stores.create((e) => ({
+var kt = null;
+function At() {
+	kt = B().stores.create((e) => ({
 		sample: null,
 		picking: null,
 		setSample: (t) => e({ sample: t }),
@@ -758,12 +761,12 @@ function kt() {
 	}));
 }
 function U() {
-	if (!Ot) throw Error("[colour-harmony] store() called before activate()");
-	return Ot;
+	if (!kt) throw Error("[colour-harmony] store() called before activate()");
+	return kt;
 }
 var W = /* @__PURE__ */ new Float32Array(256);
 for (let e = 0; e < 256; e++) W[e] = C(e / 255);
-function At(e, t, n) {
+function jt(e, t, n) {
 	let r = t * n, i = new Float32Array(r * 2), a = /* @__PURE__ */ new Float32Array(360);
 	for (let t = 0; t < r; t++) {
 		let n = W[e[t * 4]], r = W[e[t * 4 + 1]], o = W[e[t * 4 + 2]], [s, c] = vt([
@@ -788,7 +791,7 @@ function At(e, t, n) {
 	};
 }
 var G = null;
-function jt(e) {
+function Mt(e) {
 	let { width: t, height: n } = e;
 	if (t < 2 || n < 2) return null;
 	let r = Math.min(1, 192 / Math.max(t, n)), i = Math.max(1, Math.round(t * r)), a = Math.max(1, Math.round(n * r));
@@ -800,13 +803,13 @@ function jt(e) {
 		height: a
 	}) : null;
 }
-function Mt(e) {
+function Nt(e) {
 	let t = e.throttleMs ?? 150, n = !1, r = !1, i = !1, a = null, o = -Infinity, s = () => {
 		a = null;
 		let t = e.develop.getState();
 		!n && t.photoId && (r = !0, o = Date.now(), e.capture(t.previewParams ?? t.params).then((t) => {
 			let r = n ? null : e.readback(t);
-			t.close?.(), !n && e.publish(r ? At(r.data, r.width, r.height) : null);
+			t.close?.(), !n && e.publish(r ? jt(r.data, r.width, r.height) : null);
 		}).catch(() => {
 			n || e.publish(null);
 		}).finally(() => {
@@ -832,12 +835,12 @@ function Mt(e) {
 		n = !0, l(), a !== null && clearTimeout(a), a = null;
 	};
 }
-function Nt() {
+function Pt() {
 	let e = B();
-	return Mt({
+	return Nt({
 		develop: e.stores.useDevelopStore,
 		capture: (t) => e.develop.captureFrame(t),
-		readback: jt,
+		readback: Mt,
 		publish: (e) => U().getState().setSample(e)
 	});
 }
@@ -852,8 +855,8 @@ var K = {
 	"large",
 	"narrow",
 	"line"
-], Pt = 300, J = 48, Ft = 3, It = 8, Lt = 3, Rt = 360, zt = .45, Bt = "Scroll to rotate the harmony by 15° · Ctrl+scroll for 1° · Shift+scroll changes the guide width · Alt+scroll cycles the rule";
-function Vt() {
+], Ft = 300, J = 48, It = 3, Lt = 8, Rt = 3, zt = 360, Bt = .45, Vt = "Scroll to rotate the harmony by 15° · Ctrl+scroll for 1° · Shift+scroll changes the guide width · Alt+scroll cycles the rule";
+function Ht() {
 	let e = B().settings, t = e.get(K.scale, "log"), n = e.get(K.guideWidth, "normal"), r = e.get(K.dim, mt);
 	return {
 		scale: t === "linear" ? "linear" : "log",
@@ -861,8 +864,8 @@ function Vt() {
 		dim: typeof r == "number" && Number.isFinite(r) ? Math.min(1, Math.max(0, r)) : mt
 	};
 }
-var Ht = (e, t = 1) => `rgba(${Math.round(e[0] * 255)}, ${Math.round(e[1] * 255)}, ${Math.round(e[2] * 255)}, ${t})`, Ut = Tt(J), Wt = Tt(Rt);
-function Gt(e) {
+var Ut = (e, t = 1) => `rgba(${Math.round(e[0] * 255)}, ${Math.round(e[1] * 255)}, ${Math.round(e[2] * 255)}, ${t})`, Wt = Tt(J), Gt = Tt(zt);
+function Kt(e) {
 	let t = getComputedStyle(e).backgroundColor.match(/\d+(?:\.\d+)?/g);
 	return !t || (Number(t[0]) + Number(t[1]) + Number(t[2])) / 765 < .5 ? {
 		ink: "rgba(235, 235, 235, 0.9)",
@@ -872,7 +875,7 @@ function Gt(e) {
 		faint: "rgba(25, 25, 25, 0.35)"
 	};
 }
-function Kt(e, t, n, r) {
+function qt(e, t, n, r) {
 	let i = document.createElement("canvas");
 	i.width = n, i.height = n;
 	let a = i.getContext("2d");
@@ -886,22 +889,22 @@ function Kt(e, t, n, r) {
 	for (let e = 0; e < n; e++) for (let t = 0; t < n; t++) {
 		let r = o[e * n + t];
 		if (r === 0) continue;
-		let i = Dt(r, c), a = gt(Math.atan2(s - e, t - s)), l = Wt[Math.floor(a * Rt) % Rt], d = zt * i, f = (e * n + t) * 4;
+		let i = Ot(r, c), a = gt(Math.atan2(s - e, t - s)), l = Gt[Math.floor(a * zt) % zt], d = Bt * i, f = (e * n + t) * 4;
 		u[f] = Math.round(255 * (l[0] * (1 - d) + d)), u[f + 1] = Math.round(255 * (l[1] * (1 - d) + d)), u[f + 2] = Math.round(255 * (l[2] * (1 - d) + d)), u[f + 3] = Math.round(255 * i);
 	}
 	return a.putImageData(l, 0, 0), i;
 }
-function qt(e, t) {
+function Jt(e, t) {
 	return e.rule === 9 ? xt(e.customHues.slice(0, e.customNodes).map(A), t) : St(e.rule, M(e), t);
 }
-function Jt(e, t, n, r, i, a) {
+function Yt(e, t, n, r, i, a) {
 	e.beginPath();
 	for (let o of t) {
 		let t = i * (a === "log" ? _t(o.radius, 1) : o.radius);
 		e.moveTo(n, r), e.arc(n, r, t, -H(o.a0), -H(o.a1), !0), e.closePath();
 	}
 }
-function Yt(e, t, n, r, i) {
+function Xt(e, t, n, r, i) {
 	if (r) return Pe(e, wt(E.length, e.rule, i));
 	if (e.rule === 9) {
 		let r = n ? 1 / 360 : 15 / 360;
@@ -916,9 +919,9 @@ function Yt(e, t, n, r, i) {
 		anchorHue: j(a / 360)
 	};
 }
-function Xt() {
+function Zt() {
 	let { useEffect: e, useRef: t, useState: n } = B().react, r = B().stores.useDevelopStore, i = U()((e) => e.sample), a = r((e) => e.paramBag), [o, s] = n(240), [c, l] = n(0), u = t(null), d = t(null), f = t(null), p = t(null);
-	e(() => Nt(), []), e(() => B().settings.onChange(() => l((e) => e + 1)), []), e(() => {
+	e(() => Pt(), []), e(() => B().settings.onChange(() => l((e) => e + 1)), []), e(() => {
 		let e = u.current;
 		if (!e) return;
 		let t = new ResizeObserver((e) => {
@@ -930,7 +933,7 @@ function Xt() {
 	let m = () => {
 		p.current !== null && window.clearTimeout(p.current), p.current = window.setTimeout(() => {
 			p.current = null, r.getState().commitEdit("Colour Harmony");
-		}, Pt);
+		}, Ft);
 	};
 	return e(() => () => {
 		p.current !== null && (window.clearTimeout(p.current), r.getState().commitEdit("Colour Harmony"));
@@ -942,12 +945,12 @@ function Xt() {
 			let t = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? -e.deltaX : e.deltaY, n = t > 0 ? 1 : t < 0 ? -1 : 0;
 			if (n === 0) return;
 			if (e.shiftKey) {
-				let e = Vt(), t = q[wt(q.length, q.indexOf(e.guideWidth), n)];
+				let e = Ht(), t = q[wt(q.length, q.indexOf(e.guideWidth), n)];
 				B().settings.set(K.guideWidth, t), l((e) => e + 1);
 				return;
 			}
 			let i = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) > 0 ? 1 : -1, a = r.getState();
-			a.photoId && (a.setDynParams(z(Yt(R(a.paramBag), n, e.ctrlKey, e.altKey, i))), m());
+			a.photoId && (a.setDynParams(z(Xt(R(a.paramBag), n, e.ctrlKey, e.altKey, i))), m());
 		};
 		return e.addEventListener("wheel", t, { passive: !1 }), () => e.removeEventListener("wheel", t);
 	}, []), e(() => {
@@ -958,30 +961,34 @@ function Xt() {
 		let r = e.getContext("2d");
 		if (!r) return;
 		r.setTransform(t, 0, 0, t, 0, 0), r.clearRect(0, 0, n, n);
-		let s = Vt(), c = R(a), { ink: l, faint: u } = Gt(e), p = n / 2, m = n / 2, h = n / 2 - It;
+		let s = Ht(), c = R(a), { ink: l, faint: u } = Kt(e), p = n / 2, m = n / 2, h = n / 2 - Lt;
 		if (h <= 4) return;
 		let g = r.createConicGradient(0, p, m);
 		for (let e = 0; e <= J; e++) {
 			let t = gt(-e / J * 2 * Math.PI);
-			g.addColorStop(e / J, Ht(Ut[Math.round(t * J) % J], .85));
+			g.addColorStop(e / J, Ut(Wt[Math.round(t * J) % J], .85));
 		}
-		r.lineWidth = Ft, r.strokeStyle = g, r.beginPath(), r.arc(p, m, h, 0, 2 * Math.PI), r.stroke();
+		r.lineWidth = It, r.strokeStyle = g, r.beginPath(), r.arc(p, m, h, 0, 2 * Math.PI), r.stroke();
 		for (let e = 0; e < 6; e++) {
 			let t = H(e / 6);
-			r.beginPath(), r.arc(p + h * Math.cos(t), m - h * Math.sin(t), Lt, 0, 2 * Math.PI), r.fillStyle = Ht(Ut[e * J / 6]), r.fill(), r.lineWidth = 1, r.strokeStyle = u, r.stroke();
+			r.beginPath(), r.arc(p + h * Math.cos(t), m - h * Math.sin(t), Rt, 0, 2 * Math.PI), r.fillStyle = Ut(Wt[e * J / 6]), r.fill(), r.lineWidth = 1, r.strokeStyle = u, r.stroke();
 		}
-		let _ = dt[s.guideWidth], v = qt(c, _);
+		let _ = dt[s.guideWidth], v = Jt(c, _);
 		if (i) {
-			let e = Math.round(n * t), a = `${i.count}|${i.width}x${i.height}|${s.scale}|${e}`;
-			(!f.current || f.current.key !== a) && (f.current = {
-				canvas: Kt(i, s.scale, e, h * t),
-				key: a
-			});
-			let o = f.current.canvas, c = _ > 0 && v.length > 0;
-			r.save(), r.globalAlpha = c ? s.dim : 1, r.drawImage(o, 0, 0, n, n), r.restore(), c && (r.save(), Jt(r, v, p, m, h, s.scale), r.clip(), r.drawImage(o, 0, 0, n, n), r.restore());
+			let e = {
+				sample: i,
+				scale: s.scale,
+				sizePx: Math.round(n * t)
+			}, a = f.current;
+			(!a || !Dt(a, e)) && (a = {
+				...e,
+				canvas: qt(i, s.scale, e.sizePx, h * t)
+			}, f.current = a);
+			let o = a.canvas, c = _ > 0 && v.length > 0;
+			r.save(), r.globalAlpha = c ? s.dim : 1, r.drawImage(o, 0, 0, n, n), r.restore(), c && (r.save(), Yt(r, v, p, m, h, s.scale), r.clip(), r.drawImage(o, 0, 0, n, n), r.restore());
 		} else f.current = null;
 		if (v.length > 0) {
-			Jt(r, v, p, m, h, s.scale), r.lineWidth = 1, r.strokeStyle = l, r.stroke(), r.font = "11px var(--font-mono), monospace", r.fillStyle = l, r.textBaseline = "bottom";
+			Yt(r, v, p, m, h, s.scale), r.lineWidth = 1, r.strokeStyle = l, r.stroke(), r.font = "11px var(--font-mono), monospace", r.fillStyle = l, r.textBaseline = "bottom";
 			let e = E[c.rule]?.label ?? "";
 			r.fillText(c.rule === 9 ? e : `${M(c)}°  ${e}`, 6, n - 5);
 		}
@@ -1003,39 +1010,39 @@ function Xt() {
 			background: "var(--color-surface-0)",
 			touchAction: "none"
 		},
-		title: Bt
+		title: Vt
 	}));
 }
 //#endregion
 //#region src/Panel.ts
-var Zt = 24, Qt = 8, $t = .85, en = (e) => `rgb(${Math.round(e[0] * 255)}, ${Math.round(e[1] * 255)}, ${Math.round(e[2] * 255)})`, Y = null;
-function tn() {
+var Qt = 24, $t = 8, en = .85, tn = (e) => `rgb(${Math.round(e[0] * 255)}, ${Math.round(e[1] * 255)}, ${Math.round(e[2] * 255)})`, Y = null;
+function nn() {
 	if (Y) return Y;
 	let e = [];
-	for (let t = 0; t <= Zt; t++) {
-		let n = t / Zt;
-		e.push(`${en(Oe(j(n)))} ${(n * 100).toFixed(2)}%`);
+	for (let t = 0; t <= Qt; t++) {
+		let n = t / Qt;
+		e.push(`${tn(Oe(j(n)))} ${(n * 100).toFixed(2)}%`);
 	}
 	return Y = `linear-gradient(to right, ${e.join(", ")})`, Y;
 }
-var nn = /* @__PURE__ */ new Map();
-function rn(e) {
-	let t = Math.round(e * 1e3), n = nn.get(t);
+var rn = /* @__PURE__ */ new Map();
+function an(e) {
+	let t = Math.round(e * 1e3), n = rn.get(t);
 	if (n) return n;
-	let r = Ee(e), i = r * $t, a = [];
-	for (let t = 0; t <= Qt; t++) {
-		let n = t / Qt, o = n <= .5 ? n * 2 * i : i + (n - .5) * 2 * (r - i);
-		a.push(`${en(De(e, o))} ${(n * 100).toFixed(2)}%`);
+	let r = Ee(e), i = r * en, a = [];
+	for (let t = 0; t <= $t; t++) {
+		let n = t / $t, o = n <= .5 ? n * 2 * i : i + (n - .5) * 2 * (r - i);
+		a.push(`${tn(De(e, o))} ${(n * 100).toFixed(2)}%`);
 	}
 	let o = `linear-gradient(to right, ${a.join(", ")})`;
-	return nn.set(t, o), o;
+	return rn.set(t, o), o;
 }
-var an = A(D.anchorHue) * 360, on = {
+var on = A(D.anchorHue) * 360, sn = {
 	fontSize: "10px",
 	color: "var(--color-text-muted)",
 	lineHeight: 1.4
 };
-function sn() {
+function cn() {
 	let { Slider: e, Panel: t } = B().components, { Button: n, Select: r, Row: i, Stack: a, tokens: o } = B().ui, s = B().stores.useDevelopStore, c = s((e) => e.paramBag), l = U()((e) => e.sample), u = U()((e) => e.picking), d = R(c), f = d.rule === 9, p = N(d), m = () => R(s.getState().paramBag), h = (e) => s.getState().setDynParams(z(e)), g = (e) => void s.getState().commitEdit(`Colour Harmony ${e}`), _ = (t, n, r, i, a, o, s, c) => V(e, {
 		key: t,
 		label: t,
@@ -1054,7 +1061,7 @@ function sn() {
 			height: 22,
 			flex: "0 0 auto",
 			borderRadius: 4,
-			background: en(Oe(e)),
+			background: tn(Oe(e)),
 			border: `1px solid ${o.border}`
 		}
 	}), y = (e) => V(n, {
@@ -1093,14 +1100,14 @@ function sn() {
 				anchorHue: t.anchor
 			}), g("infer");
 		}
-	}, "Infer")), b = (e, t, n, r) => _(e, A(t) * 360, 0, 360, .5, n, (e, t) => r(e, j(t / 360)), tn()), x = f ? null : V(i, {
+	}, "Infer")), b = (e, t, n, r) => _(e, A(t) * 360, 0, 360, .5, n, (e, t) => r(e, j(t / 360)), nn()), x = f ? null : V(i, {
 		key: "anchor",
 		gap: 6,
 		align: "flex-end"
 	}, V("div", { style: {
 		flex: "1 1 auto",
 		minWidth: 0
-	} }, b("Anchor hue", d.anchorHue, an, (e, t) => ({
+	} }, b("Anchor hue", d.anchorHue, on, (e, t) => ({
 		...e,
 		anchorHue: t
 	}))), y("anchor")), te = f ? [_("Nodes", d.customNodes, 2, 4, 1, D.customNodes, (e, t) => ({
@@ -1120,7 +1127,7 @@ function sn() {
 		key: "swatches",
 		gap: 6
 	}, ...p.nodes.map((e, t) => v(e, `node-${t}`)), V("span", { style: {
-		...on,
+		...sn,
 		marginLeft: "auto"
 	} }, `${p.count} node${p.count === 1 ? "" : "s"}`)), S = [
 		_("Pull strength", d.pullStrength, 0, 1, .01, D.pullStrength, (e, t) => ({
@@ -1146,11 +1153,11 @@ function sn() {
 	}, V(a, { gap: 1 }, ...p.nodes.map((e, t) => _(`Hue ${t + 1} saturation`, Math.round(d.nodeSat[t] * 100), 0, 200, 1, 100, (e, n) => ({
 		...e,
 		nodeSat: e.nodeSat.map((e, r) => r === t ? n / 100 : e)
-	}), rn(e)))));
+	}), an(e)))));
 	return V(a, {
 		gap: 6,
 		style: { padding: "6px 8px 8px" }
-	}, V(Xt, { key: "scope" }), ee, x, ...te ?? [], ne, V("div", {
+	}, V(Zt, { key: "scope" }), ee, x, ...te ?? [], ne, V("div", {
 		key: "effect",
 		style: {
 			display: "flex",
@@ -1161,8 +1168,8 @@ function sn() {
 }
 //#endregion
 //#region src/Picker.ts
-var cn = .01;
-function ln(e, t, n, r, i) {
+var ln = .01;
+function un(e, t, n, r, i) {
 	if (!i || n.width <= 0 || n.height <= 0 || i.w <= 0 || i.h <= 0) return null;
 	let a = r / n.width, o = (e - n.left) * a, s = (t - n.top) * a, c = (o - i.x) / i.w, l = (s - i.y) / i.h;
 	return c < 0 || c > 1 || l < 0 || l > 1 ? null : {
@@ -1170,7 +1177,7 @@ function ln(e, t, n, r, i) {
 		y: l
 	};
 }
-function un(e, t, n, r, i) {
+function dn(e, t, n, r, i) {
 	let a = Math.max(0, r - 2), o = Math.max(0, i - 2), s = Math.min(t - 1, r + 2), c = Math.min(n - 1, i + 2), l = 0, u = 0, d = 0, f = 0;
 	for (let n = o; n <= c; n++) for (let r = a; r <= s; r++) {
 		let i = (n * t + r) * 4;
@@ -1182,9 +1189,9 @@ function un(e, t, n, r, i) {
 		u / f,
 		d / f
 	]);
-	return p > cn ? me(m) : null;
+	return p > ln ? me(m) : null;
 }
-function dn(e, t) {
+function fn(e, t) {
 	let n = B().stores.useDevelopStore.getState(), r = R(n.paramBag), i = e === "anchor" ? {
 		...r,
 		anchorHue: t
@@ -1194,10 +1201,10 @@ function dn(e, t) {
 	};
 	n.setDynParams(z(i)), n.commitEdit("Colour Harmony pick"), U().getState().setPicking(null);
 }
-async function fn(e, t, n, r, i) {
+async function pn(e, t, n, r, i) {
 	try {
 		if (!n) return;
-		let a = ln(e, t, n.getBoundingClientRect(), n.clientWidth, r);
+		let a = un(e, t, n.getBoundingClientRect(), n.clientWidth, r);
 		if (!a) return;
 		let o = B().stores.useDevelopStore.getState(), s = await B().develop.captureFrame(o.previewParams ?? o.params), c = s.width, l = s.height;
 		if (c < 2 || l < 2) {
@@ -1210,13 +1217,13 @@ async function fn(e, t, n, r, i) {
 			return;
 		}
 		u.drawImage(s, 0, 0), s.close();
-		let d = Math.min(c - 1, Math.max(0, Math.round(a.x * c))), f = Math.min(l - 1, Math.max(0, Math.round(a.y * l))), p = Math.max(0, d - 2), m = Math.max(0, f - 2), h = Math.min(c - 1, d + 2) - p + 1, g = Math.min(l - 1, f + 2) - m + 1, _ = u.getImageData(p, m, h, g).data, v = un(_, h, g, d - p, f - m);
-		v !== null && dn(i, v);
+		let d = Math.min(c - 1, Math.max(0, Math.round(a.x * c))), f = Math.min(l - 1, Math.max(0, Math.round(a.y * l))), p = Math.max(0, d - 2), m = Math.max(0, f - 2), h = Math.min(c - 1, d + 2) - p + 1, g = Math.min(l - 1, f + 2) - m + 1, _ = u.getImageData(p, m, h, g).data, v = dn(_, h, g, d - p, f - m);
+		v !== null && fn(i, v);
 	} catch (e) {
 		console.warn("[colour-harmony] hue pick failed:", e);
 	}
 }
-function pn() {
+function mn() {
 	let { useEffect: e, useRef: t } = B().react, n = U()((e) => e.picking), r = B().develop.useDevelopOverlay(), i = t(null);
 	return e(() => {
 		if (n === null) return;
@@ -1233,18 +1240,18 @@ function pn() {
 			cursor: B().cursors.resolve("pick")
 		},
 		onPointerDown: (e) => {
-			e.button !== 0 || e.ctrlKey || e.metaKey || (e.preventDefault(), fn(e.clientX, e.clientY, i.current, r.rect, n));
+			e.button !== 0 || e.ctrlKey || e.metaKey || (e.preventDefault(), pn(e.clientX, e.clientY, i.current, r.rect, n));
 		}
 	});
 }
-var mn = Math.sqrt(85), hn = 4096;
-function gn(e) {
+var hn = Math.sqrt(85), gn = 4096;
+function _n(e) {
 	let t = e.toPrecision(10);
 	if (!t.includes("e")) return t.includes(".") ? t : `${t}.0`;
 	let [n, r] = t.split("e");
 	return `${n.includes(".") ? n : `${n}.0`}e${r}`;
 }
-var X = gn, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(X).join(", ")})`, _n = (e) => `mat3(${[
+var X = _n, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(X).join(", ")})`, vn = (e) => `mat3(${[
 	0,
 	3,
 	6,
@@ -1254,7 +1261,7 @@ var X = gn, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(
 	2,
 	5,
 	8
-].map((t) => X(e[t])).join(", ")})`, vn = `
+].map((t) => X(e[t])).join(", ")})`, yn = `
 float chLStar(float Y) {
   float yh = pow(max(Y, 0.0), ${X(a)});
   return ${X(r)} * yh / (yh + ${X(o)});
@@ -1274,7 +1281,7 @@ vec3 chXyz(vec3 xyY) {
 }
 // Scene-linear RGB -> (J, C, hue turn in [0, 1)).
 vec3 chJch(vec3 lin) {
-  const mat3 toXyz = ${_n(e)};
+  const mat3 toXyz = ${vn(e)};
   vec3 xyY = chXyY(toXyz * lin);
   vec3 uvd = ${Z(f)} * xyY.x + ${Z(p)} * xyY.y + ${Z(m)};
   vec2 uv = uvd.xy / chSafeDiv(uvd.z);
@@ -1288,7 +1295,7 @@ vec3 chJch(vec3 lin) {
 }
 // (J, C, hue turn) -> scene-linear RGB.
 vec3 chRgb(vec3 jch) {
-  const mat3 toRgb = ${_n(t)};
+  const mat3 toRgb = ${vn(t)};
   float L = clamp(jch.x * ${X(S)}, 0.0, ${X(i)});
   float M = L != 0.0
     ? pow(jch.y * ${X(S)} / (${X(c)} * pow(L, ${X(l)})), ${X(d)})
@@ -1333,7 +1340,7 @@ vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutra
   float C = max(jch.y * (1.0 + satDelta * cw), 0.0);
   return chRgb(vec3(jch.x, C, hue));
 }
-`, yn = "\n{\n  if (smoothing <= 0.0 && (pullStrength > 0.0 || any(notEqual(nodeSat, vec4(1.0))))) {\n    int n = int(nodeCount + 0.5);\n    vec3 jch = chJch(max(lin, 0.0));\n    vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n    float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n    lin = chFinish(jch, pull.x, satDelta, pullStrength, neutralProtection);\n  }\n}\n", bn = {
+`, bn = "\n{\n  if (smoothing <= 0.0 && (pullStrength > 0.0 || any(notEqual(nodeSat, vec4(1.0))))) {\n    int n = int(nodeCount + 0.5);\n    vec3 jch = chJch(max(lin, 0.0));\n    vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n    float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n    lin = chFinish(jch, pull.x, satDelta, pullStrength, neutralProtection);\n  }\n}\n", xn = {
 	rule: {
 		min: 0,
 		max: 9,
@@ -1369,7 +1376,7 @@ vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutra
 		max: 2,
 		step: .01
 	}
-}, xn = {
+}, Sn = {
 	rule: "harmony rule",
 	anchorHue: "anchor hue",
 	customHues: "custom node hues",
@@ -1382,7 +1389,7 @@ vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutra
 	nodes: "harmony nodes",
 	nodeCount: "node count"
 };
-function Sn() {
+function Cn() {
 	let e = D, { nodes: t, count: n } = N(e), r = [
 		...t,
 		0,
@@ -1406,29 +1413,29 @@ function Sn() {
 		key: e,
 		glslType: Array.isArray(i[e]) ? "vec4" : "float",
 		default: i[e],
-		range: bn[e],
-		label: xn[e]
+		range: xn[e],
+		label: Sn[e]
 	}));
 }
-function Cn() {
+function wn() {
 	return {
 		id: He,
 		name: "Colour Harmony",
 		phase: "scene-linear",
 		priority: 80,
-		glsl: yn,
-		helpers: vn,
-		uniforms: Sn(),
+		glsl: bn,
+		helpers: yn,
+		uniforms: Cn(),
 		presetScope: "global"
 	};
 }
-var wn = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));\n  vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n  float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n  c = vec3(pull.x, satDelta, 0.0);\n}\n", Tn = `
+var Tn = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));\n  vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n  float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n  c = vec3(pull.x, satDelta, 0.0);\n}\n", En = `
 {
   int level = uPassIndex / 2;
   bool horizontal = (uPassIndex - 2 * level) == 0;
   float longEdge = max(1.0 / uTexel.x, 1.0 / uTexel.y);
-  float sigma = blur * max(${X(1.5)}, 8.0 * longEdge / ${X(hn)});
-  float dil = sigma / ${X(mn)} * exp2(float(level));
+  float sigma = blur * max(${X(1.5)}, 8.0 * longEdge / ${X(gn)});
+  float dil = sigma / ${X(hn)} * exp2(float(level));
   vec2 step = (horizontal ? vec2(uTexel.x, 0.0) : vec2(0.0, uTexel.y)) * dil;
   vec3 acc = 0.375 * c;
   for (int k = 1; k <= 2; k++) {
@@ -1437,7 +1444,7 @@ var wn = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));
   }
   c = acc;
 }
-`, En = "\n{\n  if (on > 0.5) {\n    vec3 jch = chJch(max(lin, 0.0));\n    lin = chFinish(jch, stageResult.x, stageResult.y, pullStrength, neutralProtection);\n  }\n}\n", $ = (e, t) => ({
+`, Dn = "\n{\n  if (on > 0.5) {\n    vec3 jch = chJch(max(lin, 0.0));\n    lin = chFinish(jch, stageResult.x, stageResult.y, pullStrength, neutralProtection);\n  }\n}\n", $ = (e, t) => ({
 	key: e,
 	glslType: t,
 	default: t === "vec4" ? [
@@ -1446,66 +1453,66 @@ var wn = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));
 		0,
 		0
 	] : 0
-}), Dn = [
+}), On = [
 	$("nodes", "vec4"),
 	$("nodeCount", "float"),
 	$("nodeSat", "vec4"),
 	$("pullWidth", "float")
-], On = [$("blur", "float")], kn = [
+], kn = [$("blur", "float")], An = [
 	$("pullStrength", "float"),
 	$("neutralProtection", "float"),
 	$("on", "float")
 ];
-function An() {
+function jn() {
 	return {
 		id: Ue,
 		name: "Colour Harmony · smoothing",
 		phase: "scene-linear",
 		priority: 81,
-		glsl: En,
-		helpers: vn,
-		uniforms: kn,
+		glsl: Dn,
+		helpers: yn,
+		uniforms: An,
 		passes: [{
-			glsl: wn,
-			helpers: vn,
-			iterations: 1,
-			uniforms: Dn
-		}, {
 			glsl: Tn,
-			iterations: 8,
+			helpers: yn,
+			iterations: 1,
 			uniforms: On
+		}, {
+			glsl: En,
+			iterations: 8,
+			uniforms: kn
 		}],
 		presetScope: "global"
 	};
 }
-function jn() {
-	return [Cn(), An()];
+function Mn() {
+	return [wn(), jn()];
 }
 //#endregion
 //#region src/index.ts
-var Mn = `${P}.panel`, Nn = `${P}.picker`, Pn = null;
-function Fn() {
+var Nn = `${P}.panel`, Pn = `${P}.picker`, Fn = null;
+function In() {
 	let e = B().stores.useDevelopStore.getState();
 	e.setDynParams(Ze()), e.commitEdit("Colour Harmony reset");
 }
-function In(e) {
-	tt(e), kt();
-	for (let t of jn()) e.registerProcessingStage(t);
+function Ln(e) {
+	tt(e), At();
+	for (let t of Mn()) e.registerProcessingStage(t);
 	e.registerPanel({
-		id: Mn,
+		id: Nn,
 		title: "Colour Harmony",
-		component: sn,
+		component: cn,
 		defaultDock: {
 			module: "develop",
 			direction: "right",
 			order: 7,
 			width: 268
 		},
-		onReset: Fn
+		onReset: In
 	}), e.registerSlot({
-		id: Nn,
+		id: Pn,
 		slot: "develop-canvas-overlay",
-		component: pn,
+		component: mn,
 		order: 60
 	}), e.registerSettings({
 		title: "Colour Harmony",
@@ -1550,22 +1557,22 @@ function In(e) {
 				step: .05
 			}
 		]
-	}), Pn = e.stores.useDevelopStore.subscribe((e, t) => {
+	}), Fn = e.stores.useDevelopStore.subscribe((e, t) => {
 		if (e.paramBag === t.paramBag) return;
 		let n = $e(e.paramBag);
 		n && e.setDynParams(n);
 	});
 }
-function Ln() {
-	Pn?.(), Pn = null;
+function Rn() {
+	Fn?.(), Fn = null;
 	try {
 		U().getState().setPicking(null);
 		let e = B();
-		for (let t of jn()) e.unregisterProcessingStage(t.id);
-		e.unregisterSlot(Nn);
+		for (let t of Mn()) e.unregisterProcessingStage(t.id);
+		e.unregisterSlot(Pn);
 	} catch {}
 }
 //#endregion
-export { In as activate, Ln as deactivate };
+export { Ln as activate, Rn as deactivate };
 
 //# sourceMappingURL=index.js.map

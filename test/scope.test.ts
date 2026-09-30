@@ -25,10 +25,12 @@ import {
   hueRingColors,
   plotAngle,
   polarToPoint,
+  sameDensity,
   scopePoint,
   wheelStep,
 } from "../src/scope";
 import { RULES } from "../src/harmony";
+import type { ScopeSample } from "../src/store";
 
 const close = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol;
 
@@ -180,5 +182,28 @@ describe("density", () => {
     expect(densityIntensity(5, 1)).toBe(1);
     expect(densityIntensity(0.5, 1)).toBeGreaterThan(0.5);
     expect(densityIntensity(0.5, 1)).toBeLessThan(1);
+  });
+});
+
+describe("density layer reuse", () => {
+  const sampleOf = (): ScopeSample => ({
+    points: new Float32Array(8),
+    count: 4,
+    histogram: new Float32Array(360),
+    width: 2,
+    height: 2,
+  });
+
+  it("reuses a layer only for the sample, scale and size it was built from", () => {
+    const sample = sampleOf();
+    const built = { sample, scale: "log" as const, sizePx: 480 };
+    expect(sameDensity(built, { sample, scale: "log", sizePx: 480 })).toBe(true);
+    expect(sameDensity(built, { sample, scale: "linear", sizePx: 480 })).toBe(false);
+    expect(sameDensity(built, { sample, scale: "log", sizePx: 360 })).toBe(false);
+  });
+
+  it("rebuilds for a new frame of the same size, e.g. after a pull-strength change", () => {
+    const built = { sample: sampleOf(), scale: "log" as const, sizePx: 480 };
+    expect(sameDensity(built, { sample: sampleOf(), scale: "log", sizePx: 480 })).toBe(false);
   });
 });

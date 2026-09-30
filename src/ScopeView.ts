@@ -38,7 +38,9 @@ import {
   plotAngle,
   polarToPoint,
   ruleSectors,
+  sameDensity,
   wheelStep,
+  type DensitySource,
   type GuideWidth,
   type ScopeScale,
   type Sector,
@@ -92,9 +94,8 @@ function inkFor(canvas: HTMLCanvasElement): { ink: string; faint: string } {
     : { ink: "rgba(25, 25, 25, 0.85)", faint: "rgba(25, 25, 25, 0.35)" };
 }
 
-interface DensityLayer {
+interface DensityLayer extends DensitySource {
   canvas: HTMLCanvasElement;
-  key: string;
 }
 
 /** The plotted density as an RGBA layer at device resolution, coloured by
@@ -285,12 +286,13 @@ export function HarmonyScope() {
     const halfWidth = GUIDE_WIDTHS[prefs.guideWidth];
     const sectors = sectorsOf(p, halfWidth);
     if (sample) {
-      const sizePx = Math.round(W * dpr);
-      const key = `${sample.count}|${sample.width}x${sample.height}|${prefs.scale}|${sizePx}`;
-      if (!densityRef.current || densityRef.current.key !== key) {
-        densityRef.current = { canvas: buildDensity(sample, prefs.scale, sizePx, R * dpr), key };
+      const source: DensitySource = { sample, scale: prefs.scale, sizePx: Math.round(W * dpr) };
+      let built = densityRef.current;
+      if (!built || !sameDensity(built, source)) {
+        built = { ...source, canvas: buildDensity(sample, prefs.scale, source.sizePx, R * dpr) };
+        densityRef.current = built;
       }
-      const layer = densityRef.current.canvas;
+      const layer = built.canvas;
       const dimmed = halfWidth > 0 && sectors.length > 0;
       ctx.save();
       ctx.globalAlpha = dimmed ? prefs.dim : 1;
