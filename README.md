@@ -63,6 +63,12 @@ darktable's, in darktable's order:
 - **Saturation** (collapsed): one slider per node, 0–200 %, on a grey-to-vivid
   track for that node's hue.
 - **Reset** from the panel's dock header menu.
+- **In masks:** add Colour Harmony to a mask from the Masking panel's Adjust tab
+  to pull the hues inside that mask only, with its own rule, anchor, pull,
+  smoothing and saturation. The mask's Colour Harmony has the same controls as
+  the panel's except the scope, Infer and Pick, which measure or pick from the
+  whole photo. It needs the current processing: on a photo edited in an earlier
+  SafeLight, use Update processing first.
 
 Preferences ▸ Extensions ▸ Colour Harmony holds the scope's display settings:
 logarithmic or linear radius (darktable's default is logarithmic), the guide
@@ -120,6 +126,12 @@ five fetches per draw, 41 per pixel per frame. darktable's `8 · scale` term is
 anchored to a 4096-px reference long edge, so Develop, thumbnails and export
 agree.
 
+Both stages are maskable: each mask that holds their keys runs a copy of them
+right after them, with the mask's values, blended in by its coverage and
+opacity. The
+smoothing copy runs its own map and blur draws, so a mask's smoothing is its
+own; the live view runs at most four masks' passes per frame.
+
 The scope, Infer and the picker read a ≤192-px capture of the live view after
 each settled render (`api.develop.captureFrame`, throttled to 150 ms and
 coalesced), only while the panel is mounted.
@@ -151,13 +163,17 @@ the JSON is committed): the UCS conversions, the RYB ↔ UCS lookups, node
 placement, the weighted pull, the fused pixel, inference; the bag bridge and
 the smoothing gate; the stage contracts and a **per-draw texture-fetch budget**
 on the real GLSL; the vectorscope model; the frame sampler's scheduling; the
-picker's mapping; the activation contract.
+picker's mapping; the activation contract; the panel's controls in the dock and
+in a mask.
 
 `npm run test:gpu` runs the stages through a SafeLight checkout's WebGL harness
 (headless Chromium on SwiftShader): both stages compile, the defaults are a
 bit-exact no-op with smoothing on or off, the fused path matches darktable's
 answer for four rule / strength / saturation sets to 0.4–0.5 % of the change,
-and the smoothing path matches a CPU reference of its blur to 0.8 %. It needs
+and the smoothing path matches a CPU reference of its blur to 0.8 %. Inside a
+mask, both stages' copies match the same references where the mask covers and
+leave every other pixel bit-exact, and a mask at the defaults changes nothing.
+It needs
 the SafeLight repository beside this one (or `SAFELIGHT_CORE=<path>`) with its
 dev dependencies installed. Pixels within half a degree of the midpoint between
 two nodes are left out of the fused comparison: darktable's nearest-node rule
@@ -168,7 +184,7 @@ flips there, and the GPU's hue is good to about 0.1°.
 Install from the SafeLight **Extensions** window, or load this folder via
 Developer Tools ▸ Extensions during development. A **Colour Harmony** panel
 appears in Develop (right dock). Build from source with `npm install && npm run
-build` (outputs `dist/index.js`). Needs SafeLight 2.5.4 or later.
+build` (outputs `dist/index.js`). Needs SafeLight 3.1.0 or later.
 
 ## License & credits
 

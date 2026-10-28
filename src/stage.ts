@@ -23,6 +23,9 @@
 // Signed corrections need the host's float ping-pong targets
 // (EXT_color_buffer_float, every desktop GPU); the 8-bit fallback clips them.
 //
+// Both stages are maskable: the host runs a copy of each, with a mask's
+// values, inside every mask whose bag holds its keys.
+//
 // The constants are formatted from ucs.ts / harmony.ts, so the shader and the
 // CPU reference cannot drift apart.
 
@@ -134,7 +137,7 @@ vec3 chRgb(vec3 jch) {
 float chAt(vec4 v, int i) { return i == 0 ? v.x : (i == 1 ? v.y : (i == 2 ? v.z : v.w)); }
 float chWrap(float h) { return h - floor(h); }
 // Pull toward the nearest node: (weighted hue shift, its Gaussian weight, winner).
-// Parameter names stay clear of the uniform keys the host rewrites (nodes, …).
+// Names here, comments included, stay clear of the uniform keys the host rewrites.
 vec3 chPull(float hue, vec4 nodeHues, int n, float zoneWidth) {
   if (n <= 0) return vec3(0.0);
   float sigma = zoneWidth * 0.5 / float(n);
@@ -238,6 +241,8 @@ export function harmonizeStage(): ProcessingStageContribution {
     helpers: HELPERS,
     uniforms: harmonizeUniforms(),
     presetScope: "global",
+    // A mask's copy is gated like the stage, so an untouched mask is a no-op.
+    mask: { maskable: true },
   };
 }
 
@@ -317,6 +322,9 @@ export function smoothStage(): ProcessingStageContribution {
     uniforms: SMOOTH_INLINE_UNIFORMS,
     passes: [map, blur],
     presetScope: "global",
+    // A mask's copy runs its own map and blur with the mask's values, idle
+    // while they are zero, as this stage's are.
+    mask: { maskable: true },
   };
 }
 

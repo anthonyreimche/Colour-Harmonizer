@@ -3,12 +3,12 @@
 // A port of darktable's color harmonizer: hues pulled toward a harmony palette
 // in darktable UCS, with darktable's RYB vectorscope and harmony guides drawn
 // in the panel from the live render. Registers two scene-linear GPU stages
-// (stage.ts), the Develop panel (Panel.ts), the on-image hue picker overlay
-// (Picker.ts) and the scope's display settings.
+// (stage.ts), the Develop panel (Panel.ts), which masks can add too, the
+// on-image hue picker overlay (Picker.ts) and the scope's display settings.
 
 import { HarmonyPanel } from "./Panel";
 import { PickerOverlay } from "./Picker";
-import { EXT_ID, rederivePatch, resetPatch } from "./params";
+import { ALL_KEYS, EXT_ID, rederivePatch, resetPatch } from "./params";
 import { api, initRuntime } from "./runtime";
 import type { DevelopStoreState, SafelightAPI } from "./safelight";
 import { DEFAULT_DIM } from "./scope";
@@ -41,6 +41,8 @@ export function activate(host: SafelightAPI): void {
     component: HarmonyPanel,
     defaultDock: { module: "develop", direction: "right", order: 7, width: 268 },
     onReset: reset,
+    // The same panel edits a mask's harmony in the Masking panel's Adjust tab.
+    mask: { component: HarmonyPanel, owns: ALL_KEYS },
   });
 
   host.registerSlot({
@@ -88,6 +90,8 @@ export function activate(host: SafelightAPI): void {
   // A bag whose GPU values disagree with its rule keys (a preset that carried
   // only some fields, an edit from another release) is re-derived live; the
   // edit itself is rewritten by the next commit, as any other change would be.
+  // A mask's bag only ever holds the defaults the host seeds or what the panel
+  // derived, so only the photo's is watched.
   unsubscribe = host.stores.useDevelopStore.subscribe((state: DevelopStoreState, prev: DevelopStoreState) => {
     if (state.paramBag === prev.paramBag) return;
     const patch = rederivePatch(state.paramBag);

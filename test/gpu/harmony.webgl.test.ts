@@ -10,7 +10,10 @@
 //    several rules, strengths and saturations;
 //  • the smoothing path — map pass, eight blur draws, half-float targets, the
 //    inline — equals a CPU à trous reference, and leaves regions far from a
-//    hue boundary as the fused path renders them.
+//    hue boundary as the fused path renders them;
+//  • inside a mask, each stage's copy applies the mask's values where the mask
+//    covers and leaves every other pixel bit-exact, the smoothing copy running
+//    its own map and blur passes.
 //
 // The timings it prints are SwiftShader (CPU) numbers, only useful relative to
 // each other.
@@ -29,6 +32,7 @@ import { deriveAll } from "@ch/params";
 import { BLUR_LEVELS, BLUR_VARIANCE_SCALE, REFERENCE_LONG_EDGE, allStages } from "@ch/stage";
 import { hsvToRgb, hueTurn, jchToLinearSrgb, linearSrgbToJch, turnToRadians } from "@ch/ucs";
 import { atrousBlur } from "@ch-test/support/blur";
+import { defaultMaskAdjustments, type Mask } from "@/catalog/types";
 import {
   LINEAR_PROBE_PIPELINE,
   type Frame,
@@ -238,10 +242,61 @@ function describePixel(src: Float64Array, p: HarmonyParams, px: number): string 
   return `(${px % W},${Math.floor(px / W)}) hue=${hue.toFixed(6)} C=${C.toFixed(4)} w=[${weights.join(" ")}]`;
 }
 
-function expectBitExact(a: Frame | null, b: Frame | null): void {
+function expectBitExact(a: Frame | null, b: Frame | null, keep: (p: number) => boolean = () => true): void {
   expect(a).not.toBeNull();
   expect(b).not.toBeNull();
-  for (let i = 0; i < a!.data.length; i++) expect(a!.data[i]).toBe(b!.data[i]);
+  for (let p = 0; p < N; p++) {
+    if (!keep(p)) continue;
+    for (let ch = 0; ch < 4; ch++) expect(a!.data[p * 4 + ch]).toBe(b!.data[p * 4 + ch]);
+  }
+}
+
+// ── Masks ────────────────────────────────────────────────────────────────────
+
+/** Stage copies run in masks from process version 2 on. */
+const MASKED_VERSION = 2;
+
+/** A mask holding `bag`, whose linear gradient steps at u = `at`: it covers
+ *  the columns right of the step, fully. The host floors a gradient's squared
+ *  length at 1e-6, so this one is 1e-3 long, a quarter pixel here; a shorter
+ *  one would ramp over 1e-2, nearly three. */
+function stepMask(at: number, bag: Record<string, unknown>): Mask {
+  return {
+    id: "m",
+    name: "Mask",
+    visible: true,
+    invert: false,
+    opacity: 100,
+    adj: defaultMaskAdjustments(),
+    panels: ["colour-harmony.panel"],
+    bag,
+    components: [{ id: "step", kind: "linear", mode: "add", invert: false, linear: { x0: at, y0: 0, x1: at + 1e-3, y1: 0 } }],
+  };
+}
+
+/** Columns clear of the pixel a step at u = `at` straddles, either side. */
+const leftOf = (at: number) => (p: number) => p % W < at * W - 1;
+const rightOf = (at: number) => (p: number) => p % W > at * W;
+
+interface MaskedFrames {
+  off: Frame | null;
+  on: Frame | null;
+  /** Prepass draws the masked frame took. */
+  passDraws: number;
+}
+
+/** The photo at the defaults, without and then with `mask`. */
+function maskedFrames(image: ReturnType<typeof toImage>, mask: Mask): MaskedFrames {
+  return withRenderer({ stages: [...builtinStages(), ...allStages()], pipeline: LINEAR_PROBE_PIPELINE }, (r) => {
+    r.setImage(image);
+    r.setContributedParams(deriveAll(DEFAULT_PARAMS));
+    r.setParams(identityParams({ processVersion: MASKED_VERSION }));
+    const off = r.captureFloatFrame();
+    r.setParams(identityParams({ processVersion: MASKED_VERSION, masks: [mask] }));
+    const before = r.renderDrawCounts.pass;
+    const on = r.captureFloatFrame();
+    return { off, on, passDraws: r.renderDrawCounts.pass - before };
+  });
 }
 
 const MAX_ERROR_FRACTION = 0.02;
@@ -377,5 +432,60 @@ describe("Colour Harmony stages on the real renderer", () => {
     }
     expect(farDiff / farN).toBeLessThan(5e-4);
     expect(nearDiff / nearN).toBeGreaterThan(2e-3);
+  });
+
+  it("leaves a mask at the defaults a bit-exact no-op, smoothing on or off", () => {
+    for (const p of [DEFAULT_PARAMS, { ...DEFAULT_PARAMS, smoothing: 1 }]) {
+      const frames = maskedFrames(SWEEP_IMAGE, stepMask(0, deriveAll(p)));
+      expectBitExact(frames.on, frames.off);
+      expect(frames.passDraws).toBe(0);
+    }
+  });
+
+  it("applies a mask's harmony inside the mask, and leaves the rest as the photo's", () => {
+    const [name, p] = FUSED_CASES[0];
+    const at = 0.5;
+    const frames = maskedFrames(SWEEP_IMAGE, stepMask(at, deriveAll(p)));
+    expectBitExact(frames.on, frames.off, leftOf(at));
+    expect(frames.passDraws).toBe(0);
+
+    const { keep, ties } = tieMask(SWEEP, p);
+    const inside = rightOf(at);
+    const s = compare(frames.on!, frames.off!, fusedReference(SWEEP, p), SWEEP, (px) => inside(px) && keep[px] === 1);
+    console.log(
+      `[ch-gpu] masked ${name}: darktable change rms ${s.changeRms.toExponential(2)}; ` +
+        `error rms ${s.rmse.toExponential(2)} (${((100 * s.rmse) / s.changeRms).toFixed(2)}%), ` +
+        `max ${s.max.toExponential(2)}, ${s.outliers} outliers, ${ties} midpoint ties skipped; worst ${s.worst}`,
+    );
+    expect(s.changeRms).toBeGreaterThan(1e-3);
+    expect(s.outliers).toBe(0);
+    expect(s.rmse).toBeLessThan(Math.max(s.changeRms * MAX_ERROR_FRACTION, MAX_ERROR_FLOOR));
+  });
+
+  it("runs the smoothing passes again for a mask, with the mask's values", () => {
+    const SPLIT = splitScene();
+    const p: HarmonyParams = { ...DEFAULT_PARAMS, pullStrength: 1, smoothing: smoothingForUnitDilation() };
+    // The step sits left of the hue boundary at u = 0.5, so the mask holds the
+    // blurred transition from both sides.
+    const at = 0.25;
+    const frames = maskedFrames(toImage(SPLIT), stepMask(at, deriveAll(p)));
+    expectBitExact(frames.on, frames.off, leftOf(at));
+    // The photo's own smoothing idles, so every draw is the copy's.
+    expect(frames.passDraws).toBe(1 + 2 * BLUR_LEVELS);
+
+    const s = compare(frames.on!, frames.off!, smoothedReference(SPLIT, p), SPLIT, rightOf(at));
+    // Across the hue boundary the smoothed answer parts from the fused one, so
+    // there the frame must sit far closer to the first.
+    const band = (px: number) => Math.abs((px % W) - W / 2) < 6;
+    const near = compare(frames.on!, frames.off!, smoothedReference(SPLIT, p), SPLIT, band);
+    const nearFused = compare(frames.on!, frames.off!, fusedReference(SPLIT, { ...p, smoothing: 0 }), SPLIT, band);
+    console.log(
+      `[ch-gpu] masked smoothing: change rms ${s.changeRms.toExponential(2)}; error rms ${s.rmse.toExponential(2)} ` +
+        `(${((100 * s.rmse) / s.changeRms).toFixed(2)}%), max ${s.max.toExponential(2)}; across the boundary ` +
+        `error rms ${near.rmse.toExponential(2)} against the smoothed reference, ${nearFused.rmse.toExponential(2)} against the fused`,
+    );
+    expect(s.changeRms).toBeGreaterThan(1e-3);
+    expect(s.rmse).toBeLessThan(Math.max(s.changeRms * 0.03, MAX_ERROR_FLOOR));
+    expect(near.rmse * 10).toBeLessThan(nearFused.rmse);
   });
 });

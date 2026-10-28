@@ -65,6 +65,10 @@ describe("harmonize stage", () => {
     expect(byKey.customHues.glslType).toBe("vec4");
   });
 
+  it("runs again inside masks", () => {
+    expect(stage.mask).toEqual({ maskable: true });
+  });
+
   it("has no passes and gates its block on smoothing off and a live effect", () => {
     expect(stage.passes).toBeUndefined();
     expect(stage.glsl).toMatch(/if \(smoothing <= 0\.0 && \(pullStrength > 0\.0 \|\| any\(notEqual\(nodeSat, vec4\(1\.0\)\)\)\)\)/);
@@ -94,6 +98,10 @@ describe("smooth stage", () => {
       expect(u.default).toEqual(u.glslType === "vec4" ? [0, 0, 0, 0] : 0);
     }
     expect(inlineKeys).toEqual(["pullStrength", "neutralProtection", "on"]);
+  });
+
+  it("runs again inside masks, passes and all", () => {
+    expect(stage.mask).toEqual({ maskable: true });
   });
 
   it("maps corrections in one draw and blurs them in four separable à trous levels", () => {
@@ -127,5 +135,15 @@ describe("allStages", () => {
   it("returns the fused stage then the smoothing stage with distinct name prefixes", () => {
     expect(allStages().map((s) => s.id)).toEqual([HARMONIZE_ID, SMOOTH_ID]);
     expect(stagePrefix4(HARMONIZE_ID)).not.toBe(stagePrefix4(SMOOTH_ID));
+  });
+
+  // The host gives a mask's copy its own copy of helpers that name one of the
+  // stage's uniforms, comments included (it matches by word); helpers clear of
+  // them are shared, so each mask adds no helper code to the program.
+  it("keeps the helpers clear of every uniform name, so a mask's copy shares them", () => {
+    for (const s of allStages()) {
+      const keys = [...s.uniforms, ...(s.passes ?? []).flatMap((p) => p.uniforms ?? [])].map((u) => u.key);
+      for (const key of keys) expect(s.helpers ?? "").not.toMatch(new RegExp(`\\b${key}\\b`));
+    }
   });
 });

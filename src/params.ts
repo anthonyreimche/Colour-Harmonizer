@@ -78,6 +78,9 @@ export const SMOOTH_UNIFORMS = [
 export type SmoothUniform = (typeof SMOOTH_UNIFORMS)[number];
 export const SMOOTH_KEY = qualify(SMOOTH_ID, SMOOTH_UNIFORMS);
 
+/** Every key deriveAll writes, both stages': what a mask's panel owns. */
+export const ALL_KEYS: readonly string[] = [...Object.values(KEY), ...Object.values(SMOOTH_KEY)];
+
 export type Bag = Record<string, unknown>;
 export type Patch = Record<string, number | number[]>;
 

@@ -5,6 +5,11 @@
 // the bag live through deriveAll and commit on release; the select and the
 // buttons commit at once. Generic controls come from api.ui; text stays
 // selectable.
+//
+// It edits whatever useParamScope hands it: the photo's bag in the dock, a
+// mask's in the Masking panel's Adjust tab. The scope, Infer and Pick measure
+// or pick from the whole photo, and the scope's wheel and the picker write the
+// photo's bag, so they show only in the dock.
 
 import type { CSSProperties } from "react";
 import {
@@ -75,19 +80,19 @@ const HINT: CSSProperties = { fontSize: "10px", color: "var(--color-text-muted)"
 export function HarmonyPanel() {
   const { Slider, Panel } = api().components;
   const { Button, Select, Row, Stack, tokens } = api().ui;
-  const dev = api().stores.useDevelopStore;
-  const paramBag = dev((s) => s.paramBag);
+  const scope = api().develop.useParamScope();
+  const inMask = scope.maskId !== null;
   const sample = store()((s) => s.sample);
   const picking = store()((s) => s.picking);
 
-  const p = readParams(paramBag);
+  const p = readParams(scope.getParams());
   const isCustom = p.rule === CUSTOM_RULE;
   const harmony = harmonyNodes(p);
-  // Slider drags outrun React's renders, so each change starts from the
-  // store's current bag rather than this render's snapshot.
-  const live = (): HarmonyParams => readParams(dev.getState().paramBag);
-  const apply = (next: HarmonyParams) => dev.getState().setDynParams(deriveAll(next));
-  const commit = (what: string) => void dev.getState().commitEdit(`Colour Harmony ${what}`);
+  // Slider drags outrun React's renders, so each change starts from the bag
+  // the scope holds now rather than this render's snapshot.
+  const live = (): HarmonyParams => readParams(scope.getParams());
+  const apply = (next: HarmonyParams) => scope.setParams(deriveAll(next));
+  const commit = (what: string) => scope.commit(`Colour Harmony ${what}`);
 
   const slider = (
     label: string,
@@ -126,17 +131,19 @@ export function HarmonyPanel() {
     });
 
   const pickButton = (target: PickTarget) =>
-    h(
-      Button,
-      {
-        key: `pick-${String(target)}`,
-        size: "sm",
-        active: picking === target,
-        title: "Pick the hue from the image (Esc cancels)",
-        onClick: () => store().getState().setPicking(picking === target ? null : target),
-      },
-      "Pick",
-    );
+    inMask
+      ? null
+      : h(
+          Button,
+          {
+            key: `pick-${String(target)}`,
+            size: "sm",
+            active: picking === target,
+            title: "Pick the hue from the image (Esc cancels)",
+            onClick: () => store().getState().setPicking(picking === target ? null : target),
+          },
+          "Pick",
+        );
 
   const infer = () => {
     const s = store().getState().sample;
@@ -162,17 +169,19 @@ export function HarmonyPanel() {
         },
       }),
     ),
-    h(
-      Button,
-      {
-        size: "sm",
-        disabled: !sample,
-        title:
-          "Infer from the image: score every rule and anchor against the image's hue distribution and pick the palette it already covers best",
-        onClick: infer,
-      },
-      "Infer",
-    ),
+    inMask
+      ? null
+      : h(
+          Button,
+          {
+            size: "sm",
+            disabled: !sample,
+            title:
+              "Infer from the image: score every rule and anchor against the image's hue distribution and pick the palette it already covers best",
+            onClick: infer,
+          },
+          "Infer",
+        ),
   );
 
   const hueSlider = (label: string, hue: number, defaultDeg: number, update: (current: HarmonyParams, ucs: number) => HarmonyParams) =>
@@ -259,7 +268,7 @@ export function HarmonyPanel() {
   return h(
     Stack,
     { gap: 6, style: { padding: "6px 8px 8px" } },
-    h(HarmonyScope, { key: "scope" }),
+    inMask ? null : h(HarmonyScope, { key: "scope" }),
     ruleRow,
     anchorRow,
     ...(customRows ?? []),
