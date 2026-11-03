@@ -274,18 +274,44 @@ export function effectActive(p: HarmonyParams): boolean {
   return p.pullStrength > 0 || p.nodeSat.some((s) => s !== 1);
 }
 
-/** darktable's fused process() for one scene-linear pixel. */
-export function harmonizePixel(rgb: Vec3, p: HarmonyParams, harmony: HarmonyNodes): Vec3 {
-  if (!effectActive(p)) return rgb;
+/** What a pixel's hue asks for: the smoothing stage's map, before the blur. */
+export interface Correction {
+  /** Weighted shift toward the winning node, in turns. */
+  hueShift: number;
+  /** The winning node's saturation change, weighted. */
+  satDelta: number;
+}
+
+const positive = (rgb: Vec3): Vec3 => [Math.max(rgb[0], 0), Math.max(rgb[1], 0), Math.max(rgb[2], 0)];
+
+export function pixelCorrection(rgb: Vec3, p: HarmonyParams, harmony: HarmonyNodes): Correction {
+  const [, , H] = linearSrgbToJch(positive(rgb));
+  const { shift, winner, weight } = weightedHueShift(hueTurn(H), harmony.nodes, p.pullWidth);
+  return { hueShift: shift, satDelta: ((p.nodeSat[winner] ?? 1) - 1) * weight };
+}
+
+/** The correction added to the pixel as a change in RGB, so what the UCS round
+ *  trip can't carry (channels below zero, light past its limit) passes through
+ *  as it was. On in-gamut colours this is darktable's result. On process
+ *  version 1 the moved colour replaces the pixel, the look those edits were
+ *  made with. */
+export function applyCorrection(rgb: Vec3, correction: Correction, p: HarmonyParams, processVersion = 2): Vec3 {
   const cutoff = chromaCutoff(p.neutralProtection);
-  const [J, C, H] = linearSrgbToJch([Math.max(rgb[0], 0), Math.max(rgb[1], 0), Math.max(rgb[2], 0)]);
-  const hue = hueTurn(H);
-  const { shift, winner, weight } = weightedHueShift(hue, harmony.nodes, p.pullWidth);
-  const satDelta = ((p.nodeSat[winner] ?? 1) - 1) * weight;
+  const jch = linearSrgbToJch(positive(rgb));
+  const [J, C, H] = jch;
   const chromaWeight = C / (C + cutoff + 1e-5);
-  const newHue = wrapHue(hue + shift * p.pullStrength * chromaWeight);
-  const newC = Math.max(C * (1 + satDelta * chromaWeight), 0);
-  return jchToLinearSrgb([J, newC, turnToRadians(newHue)]);
+  const newHue = wrapHue(hueTurn(H) + correction.hueShift * p.pullStrength * chromaWeight);
+  const newC = Math.max(C * (1 + correction.satDelta * chromaWeight), 0);
+  const moved = jchToLinearSrgb([J, newC, turnToRadians(newHue)]);
+  if (processVersion < 2) return moved;
+  const base = jchToLinearSrgb(jch);
+  return [rgb[0] + moved[0] - base[0], rgb[1] + moved[1] - base[1], rgb[2] + moved[2] - base[2]];
+}
+
+/** darktable's fused process() for one scene-linear pixel. */
+export function harmonizePixel(rgb: Vec3, p: HarmonyParams, harmony: HarmonyNodes, processVersion = 2): Vec3 {
+  if (!effectActive(p)) return rgb;
+  return applyCorrection(rgb, pixelCorrection(rgb, p, harmony), p, processVersion);
 }
 
 // ── Inference ────────────────────────────────────────────────────────────────

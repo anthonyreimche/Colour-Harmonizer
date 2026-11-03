@@ -8,5 +8,5 @@
   "license": "GPL-3.0-or-later",
   "categories": ["Develop", "Color"],
   "keywords": ["darktable", "colour-harmony", "color-harmony", "harmonizer", "vectorscope", "ryb", "complementary", "triad", "palette", "grading", "ucs"],
-  "minAppVersion": "3.1.0"
+  "minAppVersion": "3.2.0"
 }

@@ -49,7 +49,7 @@ function flatFetches(text: string, fns: Map<string, string>, memo: Memo): number
   if (/\b(for|while|do)\b/.test(text)) {
     throw new Error(`unrecognised loop form: ${text.trim().slice(0, 80)}`);
   }
-  let n = (text.match(/\b(?:texture|readPrev)\s*\(/g) ?? []).length;
+  let n = (text.match(/\b(?:texture|readPrev|readSource)\s*\(/g) ?? []).length;
   for (const name of fns.keys()) {
     const calls = (text.match(new RegExp(`\\b${name}\\s*\\(`, "g")) ?? []).length;
     if (calls) n += calls * functionFetches(name, fns, memo);

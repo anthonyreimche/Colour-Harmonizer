@@ -122,9 +122,12 @@ Two stages in SafeLight's scene-linear phase:
 
 The blur is four à trous levels of the separable B3 spline `[1,4,6,4,1]/16`
 (dilations s, 2s, 4s, 8s; their variances add up to 85·s², so `s = σ / √85`) at
-five fetches per draw, 41 per pixel per frame. darktable's `8 · scale` term is
-anchored to a 4096-px reference long edge, so Develop, thumbnails and export
-agree.
+five fetches per draw, 41 per pixel per frame. darktable's `scale` is the
+blurred buffer's long edge over the full-size photo's, so smoothing 1 blurs 8
+pixels of the photo in Develop, thumbnails and export alike. Photos on process
+version 1 keep the radius they were edited with, taken against a fixed 4096-px
+long edge, and the moved colour replaces the pixel instead of being added as a
+change.
 
 Both stages are maskable: each mask that holds their keys runs a copy of them
 right after them, with the mask's values, blended in by its coverage and
@@ -142,9 +145,11 @@ Differences from darktable to be aware of:
   one matrix; darktable goes work profile → XYZ D50 → CAT16 → D65. The
   difference is a fraction of a percent in XYZ.
 - Smoothing uses the iterated B3 spline, a close approximation of darktable's
-  recursive Gaussian, and its map pass sees the source before the user's
-  white-balance tweak and any earlier scene-linear stage (a property of the
-  prepass framework). The field is smoothed spatially anyway.
+  recursive Gaussian. Its map pass reads the image as edited up to the module,
+  white balance included.
+- The correction is added to each pixel as a change, so channels below zero
+  and light past the UCS limit pass through; darktable rebuilds the pixel from
+  its clipped UCS values. In gamut the results are the same.
 - The scope, the histogram and the picker are display-referred (darktable's
   vectorscope is too; its module reads its own pipeline input). Hue survives
   the tone transform closely enough.
@@ -184,7 +189,7 @@ flips there, and the GPU's hue is good to about 0.1°.
 Install from the SafeLight **Extensions** window, or load this folder via
 Developer Tools ▸ Extensions during development. A **Colour Harmony** panel
 appears in Develop (right dock). Build from source with `npm install && npm run
-build` (outputs `dist/index.js`). Needs SafeLight 3.1.0 or later.
+build` (outputs `dist/index.js`). Needs SafeLight 3.2.0 or later.
 
 ## License & credits
 

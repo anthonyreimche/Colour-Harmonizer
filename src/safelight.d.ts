@@ -95,6 +95,12 @@ export interface ProcessingStageContribution {
   uniforms: UniformDeclaration[];
   passes?: StagePass[];
   presetScope?: "global" | "per-image";
+  /** What the passes read first: the decoded source, or the image as edited
+   *  up to this stage. */
+  reads?: "source" | "current";
+  /** With reads "current": the first process version that reads the current
+   *  image; older photos read the source (Safelight 3.2.0). */
+  readsCurrentFrom?: number;
   /** Runs the stage again inside each mask whose bag holds its keys, with that
    *  mask's values, blended by its coverage; a stage with passes runs its own
    *  per mask (Safelight 3.1.0, process version 2 photos). */

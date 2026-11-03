@@ -12,12 +12,14 @@ import {
   HUE_BINS,
   MAX_NODES,
   RULES,
+  applyCorrection,
   findMaxChroma,
   harmonizePixel,
   harmonyNodes,
   hueHistogram,
   hueToSrgb,
   inferHarmony,
+  pixelCorrection,
   rotationOf,
   rybToUcs,
   scoreHarmony,
@@ -197,6 +199,42 @@ describe("harmonizePixel", () => {
   it("returns the input untouched when pull is 0 and every saturation is 1", () => {
     const rgb = [0.6, 0.12, 0.12] as const;
     expect(harmonizePixel(rgb, DEFAULT_PARAMS, harmonyNodes(DEFAULT_PARAMS))).toEqual(rgb);
+  });
+
+  it("passes a pixel far from every node through, over range and below zero", () => {
+    for (const rgb of [[-0.2, 0.6, -0.1], [0.9, -0.05, 1.3], [3.5, 2.2, 1.4]] as const) {
+      const [, , H] = linearSrgbToJch([Math.max(rgb[0], 0), Math.max(rgb[1], 0), Math.max(rgb[2], 0)]);
+      const away = wrapHue(hueTurn(H) + 0.5);
+      const p: HarmonyParams = {
+        ...DEFAULT_PARAMS,
+        rule: CUSTOM_RULE,
+        customHues: [away, away, 0, 0],
+        customNodes: 2,
+        pullStrength: 1,
+        pullWidth: 0.25,
+      };
+      const out = harmonizePixel(rgb, p, harmonyNodes(p));
+      for (let c = 0; c < 3; c++) expect(out[c]).toBeCloseTo(rgb[c], 9);
+    }
+  });
+
+  it("replaces a version 1 pixel with its moved colour, so channels below zero come back floored", () => {
+    const rgb = [-0.2, 0.6, -0.1] as const;
+    const [, , H] = linearSrgbToJch([0, 0.6, 0]);
+    const away = wrapHue(hueTurn(H) + 0.5);
+    const p: HarmonyParams = {
+      ...DEFAULT_PARAMS,
+      rule: CUSTOM_RULE,
+      customHues: [away, away, 0, 0],
+      customNodes: 2,
+      pullStrength: 1,
+      pullWidth: 0.25,
+    };
+    const correction = pixelCorrection(rgb, p, harmonyNodes(p));
+    const v1 = applyCorrection(rgb, correction, p, 1);
+    for (let c = 0; c < 3; c++) expect(v1[c]).toBeCloseTo(Math.max(rgb[c], 0), 6);
+    const v2 = applyCorrection(rgb, correction, p, 2);
+    for (let c = 0; c < 3; c++) expect(v2[c]).toBeCloseTo(rgb[c], 9);
   });
 
   it("moves a saturated colour more than a near-neutral one", () => {

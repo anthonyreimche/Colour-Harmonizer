@@ -5,7 +5,15 @@
 // GLSL — the class of cost the CPU reference never sees.
 
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PARAMS, harmonyNodes } from "../src/harmony";
+import {
+  CUSTOM_RULE,
+  DEFAULT_PARAMS,
+  applyCorrection,
+  harmonyNodes,
+  pixelCorrection,
+  wrapHue,
+  type HarmonyParams,
+} from "../src/harmony";
 import {
   HARMONIZE_ID,
   HARMONIZE_UNIFORMS,
@@ -18,12 +26,14 @@ import {
   BLUR_VARIANCE_SCALE,
   REFERENCE_LONG_EDGE,
   allStages,
+  blurSigma,
   glslLiteral,
   harmonizeStage,
   smoothStage,
 } from "../src/stage";
-import { L_WHITE, SRGB_TO_XYZ_D65, UCS_UV_X_FACTORS } from "../src/ucs";
+import { L_WHITE, SRGB_TO_XYZ_D65, UCS_UV_X_FACTORS, hueTurn, linearSrgbToJch, type Vec3 } from "../src/ucs";
 import { fetchBudget } from "./support/fetch-budget";
+import { atVersion } from "./support/process-version";
 
 describe("glslLiteral", () => {
   it("always carries a decimal point, exponents included", () => {
@@ -121,13 +131,93 @@ describe("smooth stage", () => {
     expect(stage.glsl).toContain("stageResult.y");
   });
 
+  // White balance and every earlier scene-linear stage run before this one, so
+  // a map read from the decoded source asks for the shift the pixel had before
+  // them, and the inline applies it to the pixel as it is now.
+  it("pulls a white-balanced pixel onto its node", () => {
+    const source: Vec3 = [0.32, 0.2, 0.1];
+    const current: Vec3 = [source[0] * 0.55, source[1], source[2] * 1.9];
+    const node = wrapHue(hueTurn(linearSrgbToJch(current)[2]) + 0.03);
+    const p: HarmonyParams = {
+      ...DEFAULT_PARAMS,
+      rule: CUSTOM_RULE,
+      customHues: [node, node, 0, 0],
+      customNodes: 2,
+      pullStrength: 1,
+      neutralProtection: 0,
+      smoothing: 1,
+    };
+    const mapped = stage.reads === "current" ? current : source;
+    const out = applyCorrection(current, pixelCorrection(mapped, p, harmonyNodes(p)), p);
+    let miss = Math.abs(hueTurn(linearSrgbToJch(out)[2]) - node);
+    if (miss > 0.5) miss = 1 - miss;
+    expect(miss).toBeLessThan(1e-3);
+  });
+
   it("stays within the per-draw texture-fetch budget", () => {
     const passes = stage.passes ?? [];
-    const map = fetchBudget(passes[0].glsl, passes[0].helpers ?? "");
-    const blur = fetchBudget(passes[1].glsl, passes[1].helpers ?? "");
-    expect(map).toBe(1);
-    expect(blur).toBe(5);
-    expect(map * (passes[0].iterations ?? 1) + blur * (passes[1].iterations ?? 1)).toBeLessThanOrEqual(41);
+    for (const version of [1, 2]) {
+      const map = fetchBudget(atVersion(passes[0].glsl, version), passes[0].helpers ?? "");
+      const blur = fetchBudget(atVersion(passes[1].glsl, version), passes[1].helpers ?? "");
+      expect(map).toBe(1);
+      expect(blur).toBe(5);
+      expect(map * (passes[0].iterations ?? 1) + blur * (passes[1].iterations ?? 1)).toBeLessThanOrEqual(41);
+    }
+  });
+});
+
+// Version 1 edits keep the look they were made with: the moved colour replaces
+// the pixel, and the blur is sized against a 4096 px long edge.
+describe("process versions", () => {
+  const stage = smoothStage();
+  const blur = (stage.passes ?? [])[1]?.glsl ?? "";
+
+  it("replaces the pixel with the moved colour on version 1 and adds the change from version 2", () => {
+    for (const helpers of [stage.helpers ?? "", harmonizeStage().helpers ?? ""]) {
+      const v1 = atVersion(helpers, 1);
+      const v2 = atVersion(helpers, 2);
+      expect(v1).toContain("return chRgb(vec3(jch.x, C, hue));");
+      expect(v1).not.toMatch(/return rgb \+/);
+      expect(v2).toContain("return rgb + chRgb(vec3(jch.x, C, hue)) - chRgb(jch);");
+      expect(atVersion(helpers, 3)).toBe(v2);
+    }
+  });
+
+  // From version 2 the map reads the image as edited; a version 1 photo's
+  // stage reads the decode, as those edits were made, with no split draw and
+  // a prepass that upstream edits leave alone.
+  it("maps the image as edited from version 2 only", () => {
+    expect(stage.reads).toBe("current");
+    expect(stage.readsCurrentFrom).toBe(2);
+    const map = (stage.passes ?? [])[0];
+    expect(atVersion(map.glsl, 1)).toBe(atVersion(map.glsl, 2));
+    expect(map.glsl).toMatch(/chJch\(max\(c, 0\.0\)\)/);
+  });
+
+  it("keeps version 1's blur radius and sizes it in source pixels from version 2", () => {
+    const v1 = atVersion(blur, 1);
+    expect(v1).toContain(`float sigma = blur * max(${glslLiteral(1.5)}, 8.0 * longEdge / ${glslLiteral(REFERENCE_LONG_EDGE)});`);
+    expect(v1).not.toContain("uSourceSize");
+    const v2 = atVersion(blur, 2);
+    expect(v2).toContain("uSourceSize");
+    expect(v2).not.toContain(glslLiteral(REFERENCE_LONG_EDGE));
+  });
+
+  // darktable's σ is smoothing · max(1.5, 8 · scale) pixels of the buffer it
+  // processes, scale being that buffer's size over the full image's.
+  it("blurs the same number of source pixels whatever the photo's size, from version 2", () => {
+    for (const source of [256, 1024, 4096, 6000, 9504]) {
+      const pass = Math.min(source, 4096);
+      expect((blurSigma(1, pass, source, 2) * source) / pass).toBeCloseTo(8, 9);
+      expect((blurSigma(0.5, pass, source, 2) * source) / pass).toBeCloseTo(4, 9);
+    }
+    expect(blurSigma(1, 256, 6000, 2)).toBe(1.5);
+  });
+
+  it("keeps version 1's 4096 px reference", () => {
+    expect(blurSigma(1, 256, 256, 1)).toBe(1.5);
+    expect(blurSigma(1, 4096, 6000, 1)).toBe(8);
+    expect(blurSigma(2, 2048, 2048, 1)).toBe(8);
   });
 });
 

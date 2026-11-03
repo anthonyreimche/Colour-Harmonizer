@@ -12,14 +12,19 @@
 // à trous levels of the separable B3 spline [1,4,6,4,1]/16 (dilations s, 2s,
 // 4s, 8s) approximate it at five fetches per draw. Their variances add up to
 // 85·s², so s = σ / √85, with σ darktable's `smoothing · max(1.5, 8 · scale) ·
-// max(1, pullWidth)` pixels against a 4096-px reference long edge, so Develop,
-// thumbnails and export agree. Every key under this stage is zero while it
-// idles — the host's condition for skipping a prepass — and `on` gates the
-// inline (the host binds the raw source as stageResult while it idles).
+// max(1, pullWidth)` pixels, scale being the pass's long edge over the
+// source's, so Develop, thumbnails and export blur the same part of the photo.
+// Version 1 took scale against a fixed 4096 px long edge instead. Every key
+// under this stage is zero while it idles — the host's condition for skipping
+// a prepass — and `on` gates the inline (the host binds the raw source as
+// stageResult while it idles).
 //
-// The map pass sees the source before the user's white-balance tweak and any
-// earlier scene-linear stage (a property of the prepass framework); the field
-// is smoothed spatially anyway, so this only nudges where a zone edge falls.
+// The map pass reads the image as edited up to this stage, white balance and
+// earlier scene-linear stages included, so the shift it asks for is from the
+// hue the inline then moves; on version 1 it maps the decode, as those edits
+// were made. Both stages add their correction to the pixel as
+// a change, so channels below zero and light past the UCS limit pass through;
+// on version 1 the moved colour replaces the pixel, as those edits were made.
 // Signed corrections need the host's float ping-pong targets
 // (EXT_color_buffer_float, every desktop GPU); the 8-bit fallback clips them.
 //
@@ -64,7 +69,19 @@ export const BLUR_LEVELS = 4;
 export const BLUR_ITERATIONS = 2 * BLUR_LEVELS;
 /** √(1 + 4 + 16 + 64): the B3 spline's unit variance summed over the levels. */
 export const BLUR_VARIANCE_SCALE = Math.sqrt((4 ** BLUR_LEVELS - 1) / 3);
+/** Version 1 sized the blur against this long edge, whatever the photo's. */
 export const REFERENCE_LONG_EDGE = 4096;
+/** darktable's σ per unit of smoothing: 8 pixels of the full-size image… */
+const SIGMA_PER_SOURCE_PIXEL = 8;
+/** …and never under 1.5 pixels of the buffer it blurs. */
+const MIN_SIGMA = 1.5;
+
+/** The blur's σ in pass texels for a `blur` (smoothing · max(1, pull width)),
+ *  as the blur pass computes it. */
+export function blurSigma(blur: number, passLongEdge: number, sourceLongEdge: number, processVersion: number): number {
+  const scale = processVersion >= 2 ? passLongEdge / sourceLongEdge : passLongEdge / REFERENCE_LONG_EDGE;
+  return blur * Math.max(MIN_SIGMA, SIGMA_PER_SOURCE_PIXEL * scale);
+}
 
 /** A GLSL float literal at full single precision, always with a decimal
  *  point (GLSL ES never promotes an integer literal to float). */
@@ -157,13 +174,19 @@ vec3 chPull(float hue, vec4 nodeHues, int n, float zoneWidth) {
   }
   return vec3(diffW * maxW, maxW, float(win));
 }
-// Apply a (hue shift, saturation delta) correction to a pixel's JCH.
-vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutral) {
+// Add a (hue shift, saturation delta) correction to a pixel as a change in
+// RGB, so what the UCS round trip of its JCH can't carry (channels below
+// zero, light past its limit) passes through. Version 1 replaces the pixel.
+vec3 chFinish(vec3 rgb, vec3 jch, float hueShift, float satDelta, float pull, float neutral) {
   float cutoff = neutral * neutral * neutral * ${lit(0.03)};
   float cw = jch.y / (jch.y + cutoff + ${lit(1e-5)});
   float hue = chWrap(jch.z + hueShift * pull * cw);
   float C = max(jch.y * (1.0 + satDelta * cw), 0.0);
+#if SL_PROCESS_VERSION >= 2
+  return rgb + chRgb(vec3(jch.x, C, hue)) - chRgb(jch);
+#else
   return chRgb(vec3(jch.x, C, hue));
+#endif
 }
 `;
 
@@ -176,7 +199,7 @@ const HARMONIZE_GLSL = `
     vec3 jch = chJch(max(lin, 0.0));
     vec3 pull = chPull(jch.z, nodes, n, pullWidth);
     float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;
-    lin = chFinish(jch, pull.x, satDelta, pullStrength, neutralProtection);
+    lin = chFinish(lin, jch, pull.x, satDelta, pullStrength, neutralProtection);
   }
 }
 `;
@@ -265,7 +288,11 @@ const BLUR_GLSL = `
   int level = uPassIndex / 2;
   bool horizontal = (uPassIndex - 2 * level) == 0;
   float longEdge = max(1.0 / uTexel.x, 1.0 / uTexel.y);
+#if SL_PROCESS_VERSION >= 2
+  float sigma = blur * max(${lit(MIN_SIGMA)}, ${lit(SIGMA_PER_SOURCE_PIXEL)} * longEdge / max(uSourceSize.x, uSourceSize.y));
+#else
   float sigma = blur * max(${lit(1.5)}, 8.0 * longEdge / ${lit(REFERENCE_LONG_EDGE)});
+#endif
   float dil = sigma / ${lit(BLUR_VARIANCE_SCALE)} * exp2(float(level));
   vec2 step = (horizontal ? vec2(uTexel.x, 0.0) : vec2(0.0, uTexel.y)) * dil;
   vec3 acc = 0.375 * c;
@@ -281,7 +308,7 @@ const SMOOTH_GLSL = `
 {
   if (on > 0.5) {
     vec3 jch = chJch(max(lin, 0.0));
-    lin = chFinish(jch, stageResult.x, stageResult.y, pullStrength, neutralProtection);
+    lin = chFinish(lin, jch, stageResult.x, stageResult.y, pullStrength, neutralProtection);
   }
 }
 `;
@@ -317,6 +344,9 @@ export function smoothStage(): ProcessingStageContribution {
     name: "Colour Harmony · smoothing",
     phase: "scene-linear",
     priority: 81,
+    reads: "current",
+    // Version 1 mapped the decode's hue, the look those edits were made with.
+    readsCurrentFrom: 2,
     glsl: SMOOTH_GLSL,
     helpers: HELPERS,
     uniforms: SMOOTH_INLINE_UNIFORMS,
