@@ -1244,14 +1244,14 @@ function hn() {
 		}
 	});
 }
-var gn = Math.sqrt(85), _n = 4096;
-function vn(e) {
+var gn = Math.sqrt(85), _n = 4096, vn = 8, yn = 1.5;
+function bn(e) {
 	let t = e.toPrecision(10);
 	if (!t.includes("e")) return t.includes(".") ? t : `${t}.0`;
 	let [n, r] = t.split("e");
 	return `${n.includes(".") ? n : `${n}.0`}e${r}`;
 }
-var X = vn, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(X).join(", ")})`, yn = (e) => `mat3(${[
+var X = bn, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(X).join(", ")})`, xn = (e) => `mat3(${[
 	0,
 	3,
 	6,
@@ -1261,7 +1261,7 @@ var X = vn, Z = (e) => `vec3(${e.map(X).join(", ")})`, Q = (e) => `vec2(${e.map(
 	2,
 	5,
 	8
-].map((t) => X(e[t])).join(", ")})`, bn = `
+].map((t) => X(e[t])).join(", ")})`, Sn = `
 float chLStar(float Y) {
   float yh = pow(max(Y, 0.0), ${X(a)});
   return ${X(r)} * yh / (yh + ${X(o)});
@@ -1281,7 +1281,7 @@ vec3 chXyz(vec3 xyY) {
 }
 // Scene-linear RGB -> (J, C, hue turn in [0, 1)).
 vec3 chJch(vec3 lin) {
-  const mat3 toXyz = ${yn(e)};
+  const mat3 toXyz = ${xn(e)};
   vec3 xyY = chXyY(toXyz * lin);
   vec3 uvd = ${Z(f)} * xyY.x + ${Z(p)} * xyY.y + ${Z(m)};
   vec2 uv = uvd.xy / chSafeDiv(uvd.z);
@@ -1295,7 +1295,7 @@ vec3 chJch(vec3 lin) {
 }
 // (J, C, hue turn) -> scene-linear RGB.
 vec3 chRgb(vec3 jch) {
-  const mat3 toRgb = ${yn(t)};
+  const mat3 toRgb = ${xn(t)};
   float L = clamp(jch.x * ${X(S)}, 0.0, ${X(i)});
   float M = L != 0.0
     ? pow(jch.y * ${X(S)} / (${X(c)} * pow(L, ${X(l)})), ${X(d)})
@@ -1332,15 +1332,21 @@ vec3 chPull(float hue, vec4 nodeHues, int n, float zoneWidth) {
   }
   return vec3(diffW * maxW, maxW, float(win));
 }
-// Apply a (hue shift, saturation delta) correction to a pixel's JCH.
-vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutral) {
+// Add a (hue shift, saturation delta) correction to a pixel as a change in
+// RGB, so what the UCS round trip of its JCH can't carry (channels below
+// zero, light past its limit) passes through. Version 1 replaces the pixel.
+vec3 chFinish(vec3 rgb, vec3 jch, float hueShift, float satDelta, float pull, float neutral) {
   float cutoff = neutral * neutral * neutral * ${X(.03)};
   float cw = jch.y / (jch.y + cutoff + ${X(1e-5)});
   float hue = chWrap(jch.z + hueShift * pull * cw);
   float C = max(jch.y * (1.0 + satDelta * cw), 0.0);
+#if SL_PROCESS_VERSION >= 2
+  return rgb + chRgb(vec3(jch.x, C, hue)) - chRgb(jch);
+#else
   return chRgb(vec3(jch.x, C, hue));
+#endif
 }
-`, xn = "\n{\n  if (smoothing <= 0.0 && (pullStrength > 0.0 || any(notEqual(nodeSat, vec4(1.0))))) {\n    int n = int(nodeCount + 0.5);\n    vec3 jch = chJch(max(lin, 0.0));\n    vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n    float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n    lin = chFinish(jch, pull.x, satDelta, pullStrength, neutralProtection);\n  }\n}\n", Sn = {
+`, Cn = "\n{\n  if (smoothing <= 0.0 && (pullStrength > 0.0 || any(notEqual(nodeSat, vec4(1.0))))) {\n    int n = int(nodeCount + 0.5);\n    vec3 jch = chJch(max(lin, 0.0));\n    vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n    float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n    lin = chFinish(lin, jch, pull.x, satDelta, pullStrength, neutralProtection);\n  }\n}\n", wn = {
 	rule: {
 		min: 0,
 		max: 9,
@@ -1376,7 +1382,7 @@ vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutra
 		max: 2,
 		step: .01
 	}
-}, Cn = {
+}, Tn = {
 	rule: "harmony rule",
 	anchorHue: "anchor hue",
 	customHues: "custom node hues",
@@ -1389,7 +1395,7 @@ vec3 chFinish(vec3 jch, float hueShift, float satDelta, float pull, float neutra
 	nodes: "harmony nodes",
 	nodeCount: "node count"
 };
-function wn() {
+function En() {
 	let e = D, { nodes: t, count: n } = N(e), r = [
 		...t,
 		0,
@@ -1413,29 +1419,33 @@ function wn() {
 		key: e,
 		glslType: Array.isArray(i[e]) ? "vec4" : "float",
 		default: i[e],
-		range: Sn[e],
-		label: Cn[e]
+		range: wn[e],
+		label: Tn[e]
 	}));
 }
-function Tn() {
+function Dn() {
 	return {
 		id: He,
 		name: "Colour Harmony",
 		phase: "scene-linear",
 		priority: 80,
-		glsl: xn,
-		helpers: bn,
-		uniforms: wn(),
+		glsl: Cn,
+		helpers: Sn,
+		uniforms: En(),
 		presetScope: "global",
 		mask: { maskable: !0 }
 	};
 }
-var En = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));\n  vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n  float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n  c = vec3(pull.x, satDelta, 0.0);\n}\n", Dn = `
+var On = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));\n  vec3 pull = chPull(jch.z, nodes, n, pullWidth);\n  float satDelta = (chAt(nodeSat, int(pull.z)) - 1.0) * pull.y;\n  c = vec3(pull.x, satDelta, 0.0);\n}\n", kn = `
 {
   int level = uPassIndex / 2;
   bool horizontal = (uPassIndex - 2 * level) == 0;
   float longEdge = max(1.0 / uTexel.x, 1.0 / uTexel.y);
+#if SL_PROCESS_VERSION >= 2
+  float sigma = blur * max(${X(yn)}, ${X(vn)} * longEdge / max(uSourceSize.x, uSourceSize.y));
+#else
   float sigma = blur * max(${X(1.5)}, 8.0 * longEdge / ${X(_n)});
+#endif
   float dil = sigma / ${X(gn)} * exp2(float(level));
   vec2 step = (horizontal ? vec2(uTexel.x, 0.0) : vec2(0.0, uTexel.y)) * dil;
   vec3 acc = 0.375 * c;
@@ -1445,7 +1455,7 @@ var En = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));
   }
   c = acc;
 }
-`, On = "\n{\n  if (on > 0.5) {\n    vec3 jch = chJch(max(lin, 0.0));\n    lin = chFinish(jch, stageResult.x, stageResult.y, pullStrength, neutralProtection);\n  }\n}\n", $ = (e, t) => ({
+`, An = "\n{\n  if (on > 0.5) {\n    vec3 jch = chJch(max(lin, 0.0));\n    lin = chFinish(lin, jch, stageResult.x, stageResult.y, pullStrength, neutralProtection);\n  }\n}\n", $ = (e, t) => ({
 	key: e,
 	glslType: t,
 	default: t === "vec4" ? [
@@ -1454,54 +1464,56 @@ var En = "\n{\n  int n = int(nodeCount + 0.5);\n  vec3 jch = chJch(max(c, 0.0));
 		0,
 		0
 	] : 0
-}), kn = [
+}), jn = [
 	$("nodes", "vec4"),
 	$("nodeCount", "float"),
 	$("nodeSat", "vec4"),
 	$("pullWidth", "float")
-], An = [$("blur", "float")], jn = [
+], Mn = [$("blur", "float")], Nn = [
 	$("pullStrength", "float"),
 	$("neutralProtection", "float"),
 	$("on", "float")
 ];
-function Mn() {
+function Pn() {
 	return {
 		id: Ue,
 		name: "Colour Harmony · smoothing",
 		phase: "scene-linear",
 		priority: 81,
-		glsl: On,
-		helpers: bn,
-		uniforms: jn,
+		reads: "current",
+		readsCurrentFrom: 2,
+		glsl: An,
+		helpers: Sn,
+		uniforms: Nn,
 		passes: [{
-			glsl: En,
-			helpers: bn,
+			glsl: On,
+			helpers: Sn,
 			iterations: 1,
-			uniforms: kn
+			uniforms: jn
 		}, {
-			glsl: Dn,
+			glsl: kn,
 			iterations: 8,
-			uniforms: An
+			uniforms: Mn
 		}],
 		presetScope: "global",
 		mask: { maskable: !0 }
 	};
 }
-function Nn() {
-	return [Tn(), Mn()];
+function Fn() {
+	return [Dn(), Pn()];
 }
 //#endregion
 //#region src/index.ts
-var Pn = `${P}.panel`, Fn = `${P}.picker`, In = null;
-function Ln() {
+var In = `${P}.panel`, Ln = `${P}.picker`, Rn = null;
+function zn() {
 	let e = B().stores.useDevelopStore.getState();
 	e.setDynParams(Qe()), e.commitEdit("Colour Harmony reset");
 }
-function Rn(e) {
+function Bn(e) {
 	nt(e), jt();
-	for (let t of Nn()) e.registerProcessingStage(t);
+	for (let t of Fn()) e.registerProcessingStage(t);
 	e.registerPanel({
-		id: Pn,
+		id: In,
 		title: "Colour Harmony",
 		component: ln,
 		defaultDock: {
@@ -1510,13 +1522,13 @@ function Rn(e) {
 			order: 7,
 			width: 268
 		},
-		onReset: Ln,
+		onReset: zn,
 		mask: {
 			component: ln,
 			owns: Ke
 		}
 	}), e.registerSlot({
-		id: Fn,
+		id: Ln,
 		slot: "develop-canvas-overlay",
 		component: hn,
 		order: 60
@@ -1563,22 +1575,22 @@ function Rn(e) {
 				step: .05
 			}
 		]
-	}), In = e.stores.useDevelopStore.subscribe((e, t) => {
+	}), Rn = e.stores.useDevelopStore.subscribe((e, t) => {
 		if (e.paramBag === t.paramBag) return;
 		let n = et(e.paramBag);
 		n && e.setDynParams(n);
 	});
 }
-function zn() {
-	In?.(), In = null;
+function Vn() {
+	Rn?.(), Rn = null;
 	try {
 		U().getState().setPicking(null);
 		let e = B();
-		for (let t of Nn()) e.unregisterProcessingStage(t.id);
-		e.unregisterSlot(Fn);
+		for (let t of Fn()) e.unregisterProcessingStage(t.id);
+		e.unregisterSlot(Ln);
 	} catch {}
 }
 //#endregion
-export { Rn as activate, zn as deactivate };
+export { Bn as activate, Vn as deactivate };
 
 //# sourceMappingURL=index.js.map
