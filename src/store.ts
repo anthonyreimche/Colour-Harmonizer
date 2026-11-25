@@ -1,12 +1,8 @@
-// Session state shared by the panel, the scope and the picker: the latest
-// frame sample and which hue (if any) the on-image picker is armed for.
+// Session state shared by the panel and the scope: the latest frame sample.
 // Built on the host's zustand `create` so the components subscribe like core.
 
 import { api } from "./runtime";
 import type { StoreApi } from "./safelight";
-
-/** Which hue the picker writes: the anchor, or a custom node slot. */
-export type PickTarget = "anchor" | 0 | 1 | 2 | 3;
 
 /** A downscaled render reduced to what the scope and inference need. */
 export interface ScopeSample {
@@ -21,9 +17,7 @@ export interface ScopeSample {
 
 export interface HarmonyUiState {
   sample: ScopeSample | null;
-  picking: PickTarget | null;
   setSample(sample: ScopeSample | null): void;
-  setPicking(target: PickTarget | null): void;
 }
 
 let current: StoreApi<HarmonyUiState> | null = null;
@@ -31,9 +25,7 @@ let current: StoreApi<HarmonyUiState> | null = null;
 export function initStore(): void {
   current = api().stores.create<HarmonyUiState>((set) => ({
     sample: null,
-    picking: null,
     setSample: (sample) => set({ sample }),
-    setPicking: (picking) => set({ picking }),
   }));
 }
 

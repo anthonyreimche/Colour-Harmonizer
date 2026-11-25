@@ -8,13 +8,12 @@ import { activate, deactivate } from "../src/index";
 import { DEFAULT_PARAMS } from "../src/harmony";
 import { HarmonyPanel } from "../src/Panel";
 import { HARMONIZE_ID, HARMONIZE_UNIFORMS, KEY, SMOOTH_ID, SMOOTH_UNIFORMS, deriveAll } from "../src/params";
-import { store } from "../src/store";
 import { fakeApi } from "./support/fake-api";
 
 describe("activate", () => {
   afterEach(() => deactivate());
 
-  it("registers both stages, the panel, the picker slot and the scope settings", () => {
+  it("registers both stages, the panel and the scope settings, and no canvas overlay", () => {
     const { api, registered } = fakeApi();
     activate(api);
     expect(registered.stages.map((s) => s.id)).toEqual([HARMONIZE_ID, SMOOTH_ID]);
@@ -22,7 +21,7 @@ describe("activate", () => {
     expect(registered.panels[0].title).toBe("Colour Harmony");
     expect(registered.panels[0].defaultDock).toMatchObject({ module: "develop", direction: "right" });
     expect(typeof registered.panels[0].onReset).toBe("function");
-    expect(registered.slots).toMatchObject([{ id: "colour-harmony.picker", slot: "develop-canvas-overlay" }]);
+    expect(registered.slots).toEqual([]);
     expect(registered.settings.length).toBe(1);
     expect(registered.settings[0].fields.map((f) => f.key).sort()).toEqual(["dim", "guideWidth", "scale"]);
   });
@@ -60,14 +59,12 @@ describe("activate", () => {
     expect(registered.patches.length).toBe(1);
   });
 
-  it("clears the picker, drops the stages and the slot, and stops listening on deactivate", () => {
+  it("drops the stages and stops listening on deactivate", () => {
     const { api, registered, develop } = fakeApi();
     activate(api);
-    store().getState().setPicking("anchor");
     deactivate();
-    expect(store().getState().picking).toBeNull();
     expect(registered.unregisteredStages).toEqual([HARMONIZE_ID, SMOOTH_ID]);
-    expect(registered.unregisteredSlots).toEqual(["colour-harmony.picker"]);
+    expect(registered.unregisteredSlots).toEqual([]);
     develop.setState({ paramBag: { ...deriveAll(DEFAULT_PARAMS), [KEY.anchorHue]: 0.6 } });
     expect(registered.patches.length).toBe(0);
   });

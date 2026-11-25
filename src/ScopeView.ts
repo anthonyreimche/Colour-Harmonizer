@@ -328,7 +328,7 @@ export function HarmonyScope() {
     height: size,
     display: "block",
     borderRadius: 4,
-    background: "var(--color-surface-0)",
+    background: api().ui.tokens.surface0,
     touchAction: "none",
   };
   return h(

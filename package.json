@@ -1,7 +1,7 @@
 {
   "name": "safelight-colour-harmony",
   "private": true,
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Colour Harmony extension for Safelight — a port of darktable's color harmonizer with an RYB vectorscope and harmony guides.",
   "type": "module",
   "scripts": {

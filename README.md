@@ -49,9 +49,10 @@ darktable's, in darktable's order:
   against a chroma-weighted histogram of the image's hues and picks the
   combination that already covers the most chromatic energy — the palette that
   needs the least correction.
-- **Anchor hue** (RYB degrees, hue-coloured track) with **Pick**: click a spot in
-  the image to anchor the palette on it (a 5×5 patch is averaged; Esc cancels).
-- **Custom**: a **Nodes** count and one row per node — swatch, hue slider, Pick.
+- **Anchor colour** field over the **Anchor hue** slider (RYB degrees, hue-coloured
+  track): click the swatch to choose the hue, or use the eyedropper to anchor the
+  palette on a spot in the image, read without the harmonizer's own effect.
+- **Custom**: a **Nodes** count and one colour field plus hue slider per node.
   Switching to Custom seeds the nodes from the rule you were on.
 - The **swatches** of the current nodes.
 - **Pull strength** (0 leaves colours alone), **Pull width** (below 1 only hues
@@ -66,7 +67,7 @@ darktable's, in darktable's order:
 - **In masks:** add Colour Harmony to a mask from the Masking panel's Adjust tab
   to pull the hues inside that mask only, with its own rule, anchor, pull,
   smoothing and saturation. The mask's Colour Harmony has the same controls as
-  the panel's except the scope, Infer and Pick, which measure or pick from the
+  the panel's except the scope and Infer, which measure the
   whole photo. It needs the current processing: on a photo edited in an earlier
   SafeLight, use Update processing first.
 
@@ -135,7 +136,7 @@ opacity. The
 smoothing copy runs its own map and blur draws, so a mask's smoothing is its
 own; the live view runs at most four masks' passes per frame.
 
-The scope, Infer and the picker read a ≤192-px capture of the live view after
+The scope and Infer read a ≤192-px capture of the live view after
 each settled render (`api.develop.captureFrame`, throttled to 150 ms and
 coalesced), only while the panel is mounted.
 
@@ -150,7 +151,7 @@ Differences from darktable to be aware of:
 - The correction is added to each pixel as a change, so channels below zero
   and light past the UCS limit pass through; darktable rebuilds the pixel from
   its clipped UCS values. In gamut the results are the same.
-- The scope, the histogram and the picker are display-referred (darktable's
+- The scope, the histogram and the colour fields' swatches are display-referred (darktable's
   vectorscope is too; its module reads its own pipeline input). Hue survives
   the tone transform closely enough.
 - The vectorscope is RYB only and lives in the panel, always in sync with the
@@ -168,7 +169,7 @@ the JSON is committed): the UCS conversions, the RYB ↔ UCS lookups, node
 placement, the weighted pull, the fused pixel, inference; the bag bridge and
 the smoothing gate; the stage contracts and a **per-draw texture-fetch budget**
 on the real GLSL; the vectorscope model; the frame sampler's scheduling; the
-picker's mapping; the activation contract; the panel's controls in the dock and
+colour fields' mapping; the activation contract; the panel's controls in the dock and
 in a mask.
 
 `npm run test:gpu` runs the stages through a SafeLight checkout's WebGL harness

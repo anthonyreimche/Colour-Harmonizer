@@ -53,6 +53,9 @@ export const UI = {
   Panel: function Panel() {
     return null;
   },
+  ColourField: function ColourField() {
+    return null;
+  },
   Button: function Button() {
     return null;
   },
@@ -142,6 +145,9 @@ export function fakeApi(bag: Record<string, unknown> = {}): Rig {
         props: props ?? {},
         children,
       }),
+      useEffect: (effect: () => void) => void effect(),
+      useState: <T,>(init: T) => [init, () => undefined],
+      useRef: <T,>(current: T) => ({ current }),
     },
     registerProcessingStage: (c: ProcessingStageContribution) => void registered.stages.push(c),
     unregisterProcessingStage: (id: string) => void registered.unregisteredStages.push(id),
@@ -155,7 +161,7 @@ export function fakeApi(bag: Record<string, unknown> = {}): Rig {
       onChange: () => () => undefined,
     },
     components: { Slider: UI.Slider, Panel: UI.Panel },
-    ui: { Button: UI.Button, Select: UI.Select, Row: UI.Row, Stack: UI.Stack, tokens: { border: "#444" } },
+    ui: { Button: UI.Button, Select: UI.Select, Row: UI.Row, Stack: UI.Stack, ColourField: UI.ColourField, tokens: { border: "#444", surface0: "surface-token", textMuted: "muted-token" } },
     stores: { create: fakeStore, useDevelopStore: develop },
     develop: {
       useParamScope: () => (mask ? maskScope(mask) : photoScope),

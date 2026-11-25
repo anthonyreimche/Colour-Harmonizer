@@ -1,17 +1,18 @@
 // The Develop panel: darktable's color harmonizer controls in its order —
 // the scope on top, then rule + Infer, anchor hue (or the custom node rows),
 // the node swatches, pull strength / width, neutral protection, smoothing,
-// and a collapsed Saturation section with one slider per node. Sliders write
-// the bag live through deriveAll and commit on release; the select and the
-// buttons commit at once. Generic controls come from api.ui; text stays
+// and a collapsed Saturation section with one slider per node. Each hue (the
+// anchor, a custom node) is a colour field with its slider under it for fine
+// control. Sliders and fields write the bag live through deriveAll and commit
+// on release; the select and the buttons commit at once. Generic controls come from api.ui; text stays
 // selectable.
 //
 // It edits whatever useParamScope hands it: the photo's bag in the dock, a
-// mask's in the Masking panel's Adjust tab. The scope, Infer and Pick measure
-// or pick from the whole photo, and the scope's wheel and the picker write the
-// photo's bag, so they show only in the dock.
+// mask's in the Masking panel's Adjust tab. The scope and Infer measure
+// from the whole photo, and the scope's wheel writes the photo's bag, so they
+// show only in the dock.
 
-import type { CSSProperties } from "react";
+import { PICK_BAG, rgbToRybDeg, rybDegToSrgb } from "./colour";
 import {
   CUSTOM_RULE,
   DEFAULT_PARAMS,
@@ -30,7 +31,7 @@ import {
 import { deriveAll, readParams } from "./params";
 import { api, h } from "./runtime";
 import { HarmonyScope } from "./ScopeView";
-import { store, type PickTarget } from "./store";
+import { store } from "./store";
 
 const HUE_STOPS = 24;
 const SAT_STOPS = 8;
@@ -47,7 +48,7 @@ function hueTrackCss(): string {
   const stops: string[] = [];
   for (let i = 0; i <= HUE_STOPS; i++) {
     const t = i / HUE_STOPS;
-    stops.push(`${css(hueToSrgb(rybToUcs(t)))} ${(t * 100).toFixed(2)}%`);
+    stops.push(`${css(rybDegToSrgb(t * 360))} ${(t * 100).toFixed(2)}%`);
   }
   hueTrack = `linear-gradient(to right, ${stops.join(", ")})`;
   return hueTrack;
@@ -75,15 +76,12 @@ function satTrackCss(hue: number): string {
 
 const DEFAULT_ANCHOR_DEG = ucsToRyb(DEFAULT_PARAMS.anchorHue) * 360;
 
-const HINT: CSSProperties = { fontSize: "10px", color: "var(--color-text-muted)", lineHeight: 1.4 };
-
 export function HarmonyPanel() {
   const { Slider, Panel } = api().components;
-  const { Button, Select, Row, Stack, tokens } = api().ui;
+  const { Button, Select, Row, Stack, ColourField, tokens } = api().ui;
   const scope = api().develop.useParamScope();
   const inMask = scope.maskId !== null;
   const sample = store()((s) => s.sample);
-  const picking = store()((s) => s.picking);
 
   const p = readParams(scope.getParams());
   const isCustom = p.rule === CUSTOM_RULE;
@@ -130,21 +128,6 @@ export function HarmonyPanel() {
       },
     });
 
-  const pickButton = (target: PickTarget) =>
-    inMask
-      ? null
-      : h(
-          Button,
-          {
-            key: `pick-${String(target)}`,
-            size: "sm",
-            active: picking === target,
-            title: "Pick the hue from the image (Esc cancels)",
-            onClick: () => store().getState().setPicking(picking === target ? null : target),
-          },
-          "Pick",
-        );
-
   const infer = () => {
     const s = store().getState().sample;
     if (!s) return;
@@ -187,18 +170,39 @@ export function HarmonyPanel() {
   const hueSlider = (label: string, hue: number, defaultDeg: number, update: (current: HarmonyParams, ucs: number) => HarmonyParams) =>
     slider(label, ucsToRyb(hue) * 360, 0, 360, 0.5, defaultDeg, (current, deg) => update(current, rybToUcs(deg / 360)), hueTrackCss());
 
+  // A hue as a field over its slider. The field works in RYB degrees like the
+  // slider, and its eyedropper samples the photo without the harmonizer, the
+  // colour the stages receive. One drag is one undo step under the slider's
+  // label.
+  const hueControl = (
+    key: string,
+    fieldLabel: string,
+    sliderLabel: string,
+    hue: number,
+    defaultDeg: number,
+    update: (current: HarmonyParams, ucs: number) => HarmonyParams,
+  ) => {
+    const deg = ucsToRyb(hue) * 360;
+    return h(
+      Stack,
+      { key, gap: 1 },
+      h(ColourField, {
+        label: fieldLabel,
+        hue: deg,
+        title: "Click to choose the hue; the eyedropper takes it from the image",
+        toRgb: (hueDeg: number) => rybDegToSrgb(hueDeg),
+        fromRgb: (rgb) => ({ hue: rgbToRybDeg(rgb, deg), saturation: 100, lightness: 50 }),
+        pick: { paramBag: PICK_BAG },
+        onChange: (v: { hue: number }) => apply(update(live(), rybToUcs((((v.hue % 360) + 360) % 360) / 360))),
+        onCommit: () => commit(sliderLabel.toLowerCase()),
+      }),
+      hueSlider(sliderLabel, hue, defaultDeg, update),
+    );
+  };
+
   const anchorRow = isCustom
     ? null
-    : h(
-        Row,
-        { key: "anchor", gap: 6, align: "flex-end" },
-        h(
-          "div",
-          { style: { flex: "1 1 auto", minWidth: 0 } },
-          hueSlider("Anchor hue", p.anchorHue, DEFAULT_ANCHOR_DEG, (current, ucs) => ({ ...current, anchorHue: ucs })),
-        ),
-        pickButton("anchor"),
-      );
+    : hueControl("anchor", "Anchor colour", "Anchor hue", p.anchorHue, DEFAULT_ANCHOR_DEG, (current, ucs) => ({ ...current, anchorHue: ucs }));
 
   const customRows = isCustom
     ? [
@@ -207,20 +211,10 @@ export function HarmonyPanel() {
           customNodes: Math.round(v),
         })),
         ...p.customHues.slice(0, p.customNodes).map((hue, i) =>
-          h(
-            Row,
-            { key: `custom-${i}`, gap: 6, align: "flex-end" },
-            swatch(hue, `swatch-${i}`),
-            h(
-              "div",
-              { style: { flex: "1 1 auto", minWidth: 0 } },
-              hueSlider(`Hue ${i + 1}`, hue, DEFAULT_PARAMS.customHues[i] * 360, (current, ucs) => ({
-                ...current,
-                customHues: current.customHues.map((v, k) => (k === i ? ucs : v)),
-              })),
-            ),
-            pickButton(i as PickTarget),
-          ),
+          hueControl(`custom-${i}`, `Colour ${i + 1}`, `Hue ${i + 1}`, hue, DEFAULT_PARAMS.customHues[i] * 360, (current, ucs) => ({
+            ...current,
+            customHues: current.customHues.map((v, k) => (k === i ? ucs : v)),
+          })),
         ),
       ]
     : null;
@@ -231,7 +225,7 @@ export function HarmonyPanel() {
         Row,
         { key: "swatches", gap: 6 },
         ...harmony.nodes.map((hue, i) => swatch(hue, `node-${i}`)),
-        h("span", { style: { ...HINT, marginLeft: "auto" } }, `${harmony.count} node${harmony.count === 1 ? "" : "s"}`),
+        h("span", { style: { fontSize: "10px", color: tokens.textMuted, marginLeft: "auto" } }, `${harmony.count} node${harmony.count === 1 ? "" : "s"}`),
       );
 
   const effectSliders = [
