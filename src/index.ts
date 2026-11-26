@@ -38,6 +38,7 @@ export function activate(host: SafelightAPI): void {
     title: "Colour Harmony",
     component: HarmonyPanel,
     defaultDock: { module: "develop", direction: "right", order: 7, width: 268 },
+    modules: ["develop"],
     onReset: reset,
     // The same panel edits a mask's harmony in the Masking panel's Adjust tab.
     mask: { component: HarmonyPanel, owns: ALL_KEYS },

@@ -1466,6 +1466,7 @@ function In(e) {
 			order: 7,
 			width: 268
 		},
+		modules: ["develop"],
 		onReset: Fn,
 		mask: {
 			component: fn,
